@@ -53,7 +53,3 @@ The agent will:
 2. Generate a refined story with acceptance criteria
 3. Show you the card for approval
 4. Create it on Trello after you confirm
-
-## Adding More Agents
-
-Drop any `.json` agent config into the `agents/` folder and re-run `./setup.sh`.

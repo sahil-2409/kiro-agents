@@ -12,6 +12,14 @@ echo ""
 cp agents/*.json "$AGENTS_DIR/"
 echo "✅ Agent configs copied to $AGENTS_DIR/"
 
+# Skip credentials if already set
+if [ -n "$TRELLO_API_KEY" ] && [ -n "$TRELLO_TOKEN" ] && [ -n "$TRELLO_BOARD_ID" ]; then
+  echo "✅ Trello credentials already configured — skipping"
+  echo ""
+  echo "Done! Restart Kiro CLI to pick up changes."
+  exit 0
+fi
+
 # Collect Trello credentials
 echo ""
 echo "📋 Trello Setup (get keys from https://trello.com/app-key)"

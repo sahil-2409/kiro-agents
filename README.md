@@ -7,6 +7,7 @@ Drop-in AI agents for Kiro CLI. Clone, run setup, start using.
 | Agent | Command | Description |
 |-------|---------|-------------|
 | Trello | `@trello` | Creates refined user stories on Trello with labels and acceptance criteria |
+| Test Reporter | `@test-reporter` | Generates structured test reports after test runs, saves to reports/ folder |
 
 ## Quick Setup
 
@@ -19,8 +20,31 @@ chmod +x setup.sh
 
 The setup script will:
 1. Copy agent configs to `~/.kiro/agents/`
-2. Ask for your Trello credentials
-3. Save them to your shell profile
+2. Copy hook scripts to `~/.kiro/hooks/`
+3. Ask for your Trello credentials (if not already set)
+
+## Test Reporter Agent
+
+Automatically detects test runs and generates structured markdown reports.
+
+### How it works
+
+1. A `postToolUse` hook watches for `execute_bash` commands
+2. When a test command is detected (cypress, jest, gradle test, pytest, etc.), the hook captures the output
+3. The agent generates a structured report and saves it to `reports/`
+
+### Usage
+
+In Kiro CLI:
+
+```
+@test-reporter run the cypress e2e tests and generate a report
+@test-reporter run gradle test and create a report
+```
+
+### Supported test frameworks
+
+Jest, Cypress, Vitest, Pytest, Mocha, Gradle test, and any command containing "test" in it.
 
 ## Trello Agent Setup (Manual)
 
@@ -38,18 +62,15 @@ export TRELLO_TOKEN="your_token"
 export TRELLO_BOARD_ID="your_board_id"
 ```
 
-## Usage
-
-In Kiro CLI:
+## Project Structure
 
 ```
-@trello create a user story for adding password reset functionality
-@trello add a story for filtering users by geography in the backend
-@trello create a BDD story for the team generation flow
+kiro-agents/
+├── agents/
+│   ├── trello_agent.json
+│   └── test_reporter_agent.json
+├── hooks/
+│   └── detect-test-run.sh
+├── setup.sh
+└── README.md
 ```
-
-The agent will:
-1. Ask 2-3 clarifying questions (list, labels, ETA)
-2. Generate a refined story with acceptance criteria
-3. Show you the card for approval
-4. Create it on Trello after you confirm

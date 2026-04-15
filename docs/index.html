@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trello Agent & Test Report Agent — Learnings & Deep Dive</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; }
+.slide { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 60px 80px; border-bottom: 1px solid #222; position: relative; }
+.slide-number { position: absolute; bottom: 30px; right: 40px; color: #555; font-size: 14px; }
+h1 { font-size: 52px; font-weight: 700; margin-bottom: 20px; }
+h2 { font-size: 38px; font-weight: 600; margin-bottom: 30px; color: #e0e0e0; }
+h3 { font-size: 26px; font-weight: 600; margin-bottom: 16px; color: #ccc; }
+p, li { font-size: 22px; line-height: 1.7; color: #bbb; }
+ul { list-style: none; padding-left: 0; }
+ul li { padding: 8px 0; padding-left: 30px; position: relative; }
+ul li::before { content: "→"; position: absolute; left: 0; color: #378ADD; font-weight: bold; }
+.accent { color: #378ADD; }
+.green { color: #639922; }
+.amber { color: #EF9F27; }
+.red { color: #E24B4A; }
+.tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; margin: 4px; }
+.tag-blue { background: #1a3a5c; color: #378ADD; }
+.tag-green { background: #1a3a1a; color: #639922; }
+.tag-amber { background: #3a2a0a; color: #EF9F27; }
+.tag-red { background: #3a1a1a; color: #E24B4A; }
+.card-row { display: flex; gap: 24px; margin: 20px 0; flex-wrap: wrap; }
+.card { flex: 1; min-width: 280px; background: #151515; border: 1px solid #2a2a2a; border-radius: 12px; padding: 28px; }
+.card h3 { margin-bottom: 12px; }
+.code { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 16px; color: #a0c4ff; margin: 16px 0; overflow-x: auto; white-space: pre; line-height: 1.6; }
+.diagram { background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; line-height: 2; color: #888; }
+.diagram .highlight { color: #378ADD; font-weight: bold; }
+.diagram .green-hl { color: #639922; font-weight: bold; }
+.diagram .red-hl { color: #E24B4A; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid #222; font-size: 18px; }
+th { color: #378ADD; font-weight: 600; background: #111; }
+td { color: #bbb; }
+.subtitle { font-size: 24px; color: #666; margin-bottom: 40px; }
+.big-emoji { font-size: 48px; margin-bottom: 20px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.learning-box { background: linear-gradient(135deg, #0C447C22, #0C447C11); border-left: 4px solid #378ADD; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+.learning-box p { color: #a0c4ff; font-size: 20px; }
+
+/* Hover focus effect on all text elements */
+p, li, td, th, h2, h3, .code, .learning-box, .diagram {
+  transition: all 0.3s ease;
+}
+p:hover, li:hover, td:hover, .learning-box:hover {
+  color: #fff;
+  text-shadow: 0 0 8px #378ADD44;
+  transform: translateX(4px);
+}
+h2:hover {
+  text-shadow: 0 0 12px #378ADD66;
+}
+h3:hover {
+  color: #fff;
+  text-shadow: 0 0 8px #378ADD44;
+}
+.card:hover {
+  border-color: #378ADD;
+  background: #1a1a2a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px #378ADD22;
+  transition: all 0.3s ease;
+}
+.card:hover h3, .card:hover p {
+  color: #fff;
+}
+.code:hover {
+  border-color: #378ADD;
+  box-shadow: 0 0 15px #378ADD22;
+}
+.diagram:hover {
+  border-color: #378ADD;
+  box-shadow: 0 0 15px #378ADD22;
+}
+.tag:hover {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+tr:hover td {
+  color: #fff;
+  background: #151520;
+}
+.learning-box:hover p {
+  color: #fff;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes gridPulse {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.08; }
+}
+@keyframes glowLine {
+  0% { transform: translateX(-100%); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+@keyframes nodeGlow {
+  0%, 100% { box-shadow: 0 0 8px #378ADD44; opacity: 0.3; }
+  50% { box-shadow: 0 0 20px #378ADD88; opacity: 0.7; }
+}
+@keyframes typeIn {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.slide-1-bg {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+}
+/* Neural network grid */
+.slide-1-bg .grid-line {
+  position: absolute; background: linear-gradient(90deg, transparent, #378ADD22, transparent);
+  animation: gridPulse 4s ease-in-out infinite;
+}
+.slide-1-bg .grid-line.h { height: 1px; width: 100%; }
+.slide-1-bg .grid-line.v { width: 1px; height: 100%; }
+.slide-1-bg .grid-line:nth-child(1) { top: 20%; animation-delay: 0s; }
+.slide-1-bg .grid-line:nth-child(2) { top: 40%; animation-delay: 0.8s; }
+.slide-1-bg .grid-line:nth-child(3) { top: 60%; animation-delay: 1.6s; }
+.slide-1-bg .grid-line:nth-child(4) { top: 80%; animation-delay: 2.4s; }
+.slide-1-bg .grid-line:nth-child(5).v { left: 15%; animation-delay: 0.4s; }
+.slide-1-bg .grid-line:nth-child(6).v { left: 35%; animation-delay: 1.2s; }
+.slide-1-bg .grid-line:nth-child(7).v { left: 55%; animation-delay: 2s; }
+.slide-1-bg .grid-line:nth-child(8).v { left: 75%; animation-delay: 2.8s; }
+/* Glowing data streams */
+.slide-1-bg .stream {
+  position: absolute; height: 2px; width: 80px;
+  background: linear-gradient(90deg, transparent, #378ADD, #639922, transparent);
+  border-radius: 2px; animation: glowLine 4s ease-in-out infinite;
+}
+.slide-1-bg .stream:nth-child(9) { top: 20%; left: 10%; animation-delay: 0s; animation-duration: 3s; }
+.slide-1-bg .stream:nth-child(10) { top: 40%; left: 30%; animation-delay: 1.5s; animation-duration: 3.5s; }
+.slide-1-bg .stream:nth-child(11) { top: 60%; left: 50%; animation-delay: 0.8s; animation-duration: 4s; }
+.slide-1-bg .stream:nth-child(12) { top: 80%; left: 20%; animation-delay: 2s; animation-duration: 3.2s; }
+.slide-1-bg .stream:nth-child(13) { top: 30%; left: 60%; animation-delay: 2.5s; animation-duration: 3.8s; }
+/* Intersection nodes */
+.slide-1-bg .node {
+  position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: #378ADD; animation: nodeGlow 3s ease-in-out infinite;
+}
+.slide-1-bg .node:nth-child(14) { top: 20%; left: 15%; animation-delay: 0s; }
+.slide-1-bg .node:nth-child(15) { top: 20%; left: 55%; animation-delay: 1s; }
+.slide-1-bg .node:nth-child(16) { top: 40%; left: 35%; animation-delay: 0.5s; }
+.slide-1-bg .node:nth-child(17) { top: 60%; left: 75%; animation-delay: 1.5s; }
+.slide-1-bg .node:nth-child(18) { top: 80%; left: 15%; animation-delay: 2s; }
+.slide-1-bg .node:nth-child(19) { top: 60%; left: 35%; animation-delay: 0.8s; }
+/* Center icon */
+.slide-1-icon {
+  position: relative; display: inline-block; margin-bottom: 20px;
+}
+.slide-1-icon .main { font-size: 56px; animation: pulse 2.5s ease-in-out infinite; position: relative; z-index: 2; }
+.slide-1-icon .ripple-ring {
+  position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
+  margin: -30px 0 0 -30px; border: 2px solid #378ADD44; border-radius: 50%;
+  animation: ripple 3s ease-out infinite;
+}
+.slide-1-icon .ripple-ring:nth-child(2) { animation-delay: 1s; }
+.slide-1-icon .ripple-ring:nth-child(3) { animation-delay: 2s; }
+/* Typing cursor on subtitle */
+.slide-1-cursor::after {
+  content: "▌"; animation: blink 0.8s step-end infinite; color: #378ADD;
+}@keyframes slideInTags {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide-1-emoji { animation: pulse 2s ease-in-out infinite; }
+.slide-1-title { animation: fadeInUp 0.8s ease-out 0.3s both; }
+.slide-1-subtitle { animation: fadeInUp 0.8s ease-out 0.6s both; }
+.slide-1-author { animation: fadeIn 1s ease-out 1s both; }
+.slide-1-tags { animation: slideInTags 0.8s ease-out 1.3s both; }
+
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<div class="slide" style="text-align: center; justify-content: center;">
+  <div class="slide-1-bg">
+    <!-- Grid lines -->
+    <div class="grid-line h"></div>
+    <div class="grid-line h"></div>
+    <div class="grid-line h"></div>
+    <div class="grid-line h"></div>
+    <div class="grid-line v"></div>
+    <div class="grid-line v"></div>
+    <div class="grid-line v"></div>
+    <div class="grid-line v"></div>
+    <!-- Data streams -->
+    <div class="stream"></div>
+    <div class="stream"></div>
+    <div class="stream"></div>
+    <div class="stream"></div>
+    <div class="stream"></div>
+    <!-- Nodes -->
+    <div class="node"></div>
+    <div class="node"></div>
+    <div class="node"></div>
+    <div class="node"></div>
+    <div class="node"></div>
+    <div class="node"></div>
+  </div>
+  <div class="slide-1-icon">
+    <div class="ripple-ring"></div>
+    <div class="ripple-ring"></div>
+    <div class="ripple-ring"></div>
+    <span class="main">👋</span>
+  </div>
+  <h1 class="slide-1-title">Trello Agent &amp; Test Report Agent</h1>
+  <p class="subtitle slide-1-subtitle">Building Custom Kiro Agents — Learnings &amp; Deep Dive<span class="slide-1-cursor"></span></p>
+  <p class="slide-1-author" style="color: #555; margin-top: 40px;">Sahil Kapoor · April 2026</p>
+  <div class="slide-1-tags" style="margin-top: 30px;">
+    <span class="tag tag-blue">Kiro CLI</span>
+    <span class="tag tag-green">Agents</span>
+    <span class="tag tag-amber">Hooks</span>
+    <span class="tag tag-red">Learnings</span>
+  </div>
+  <span class="slide-number">1</span>
+</div>
+
+<!-- Slide 2: Agent JSON File in Detail -->
+<div class="slide">
+  <h2>Agent JSON File — In Detail</h2>
+  <p style="font-size: 22px; margin-bottom: 20px;">Every Kiro agent is a single JSON file. Here's what each key does:</p>
+  <div class="two-col">
+    <div class="code" style="font-size: 15px;">{
+  "name": "trello",
+  "description": "Creates Trello cards",
+  "prompt": "You are a PM agent...",
+  "tools": ["shell", "read", "write"],
+  "allowedTools": ["shell", "read"],
+  "resources": [],
+  "hooks": {
+    "postToolUse": [{ ... }]
+  },
+  "welcomeMessage": "👋 Hello!"
+}</div>
+    <div>
+      <table style="font-size: 17px;">
+        <tr><th>Key</th><th>What it does</th></tr>
+        <tr><td><span class="accent">name</span></td><td>Agent identifier — invoke with <code>@name</code></td></tr>
+        <tr><td><span class="accent">description</span></td><td>Short summary shown when listing agents</td></tr>
+        <tr><td><span class="accent">prompt</span></td><td>The full system prompt — defines personality, rules, and behaviour</td></tr>
+        <tr><td><span class="accent">tools</span></td><td>Tools the agent can use: shell, read, write, grep, glob, aws, etc.</td></tr>
+        <tr><td><span class="accent">allowedTools</span></td><td>Subset of tools auto-approved without asking user permission</td></tr>
+        <tr><td><span class="accent">resources</span></td><td>Files or URLs loaded as context when agent starts</td></tr>
+        <tr><td><span class="accent">hooks</span></td><td>Shell commands that run automatically at trigger points</td></tr>
+        <tr><td><span class="accent">welcomeMessage</span></td><td>First message shown when agent is activated</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p><strong>Key insight:</strong> The <code>prompt</code> is where all the magic lives — it's the detailed instruction set that makes the agent behave like a specialist.</p>
+  </div>
+  <span class="slide-number">2</span>
+</div>
+
+<!-- Slide 3: What are Kiro Hooks? -->
+<div class="slide">
+  <h2>What are Kiro Hooks?</h2>
+  <p style="font-size: 24px; margin-bottom: 30px;">Shell commands that run automatically at specific trigger points during an AI conversation.</p>
+  <div class="card-row">
+    <div class="card">
+      <h3 class="accent">agentSpawn</h3>
+      <p>When agent starts. Load context — git status, project info, environment health.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">userPromptSubmit</h3>
+      <p>When user sends a message. Inject dynamic context or log prompts.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">preToolUse</h3>
+      <p>Before a tool runs. <strong>Can block execution</strong> (exit code 2). Security gate.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card">
+      <h3 class="accent">postToolUse</h3>
+      <p>After a tool runs. Auto-format, log, capture output, trigger side effects.</p>
+    </div>
+    <div class="card">
+      <h3 class="accent">stop</h3>
+      <p>After assistant responds. Run tests, auto-commit, generate docs.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: #666;">Key Difference</h3>
+      <p>Hooks are <strong>deterministic shell scripts</strong>. Agents are <strong>LLM-powered</strong>. Hooks can't reason — they execute.</p>
+    </div>
+  </div>
+  <span class="slide-number">3</span>
+</div>
+
+<!-- Slide 4: Our Hook — detect-test-run.sh -->
+<div class="slide">
+  <h2>Our Hook: <span class="accent">detect-test-run.sh</span></h2>
+  <p style="margin-bottom: 20px;">A postToolUse hook on execute_bash that detects test commands and captures output.</p>
+  <div class="diagram">
+    Agent runs <span class="highlight">./gradlew test</span><br>
+                    ↓<br>
+    <span class="green-hl">postToolUse</span> hook fires<br>
+                    ↓<br>
+    Hook checks: is this a test command?<br>
+                    ↓<br>
+    <span class="red-hl">No</span> → exit 0 (silent) &nbsp;&nbsp;&nbsp; <span class="green-hl">Yes</span> → collect data<br>
+                                        ↓<br>
+                            Capture: git info, project name,<br>
+                            test output, exit status, history<br>
+                                        ↓<br>
+                            Output instructions + data to STDOUT<br>
+                                        ↓<br>
+                    <span class="highlight">Active agent</span> receives it as context
+  </div>
+  <span class="slide-number">4</span>
+</div>
+
+<!-- Slide 5: Agent 1 — Trello -->
+<div class="slide">
+  <h2>Agent 1: <span class="accent">@trello</span></h2>
+  <p style="font-size: 22px; margin-bottom: 24px;">A senior product manager that creates well-structured Trello cards with BDD scenarios.</p>
+  <div class="two-col">
+    <div>
+      <h3>What it does</h3>
+      <ul>
+        <li>Asks 5 questions — <strong>one at a time</strong></li>
+        <li>Reads your repo to understand tech stack</li>
+        <li>Generates user stories with Given/When/Then</li>
+        <li>Auto-splits stories &gt; 5 SP</li>
+        <li>Creates cards via Trello API with labels</li>
+        <li>Waits for approval before creating</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Card Structure</h3>
+      <ul>
+        <li>Title: [BE]/[FE] prefix, max 80 chars</li>
+        <li>User Story: As a / I want / So that</li>
+        <li>Business Scenarios (BDD)</li>
+        <li>Tasks checklist</li>
+        <li>Acceptance Criteria</li>
+        <li>Implementation Plan (if &gt; 3 SP)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="code" style="margin-top: 20px;">@trello create a user story for adding password reset functionality</div>
+  <span class="slide-number">3</span>
+</div>
+
+<!-- Slide 4: Trello Agent Flow -->
+<div class="slide">
+  <h2>Trello Agent — Conversation Flow</h2>
+  <div class="diagram">
+    <span class="highlight">User</span>: "Create a story for email notifications"<br>
+                            ↓<br>
+    <span class="highlight">Agent</span>: 📋 Question 1 of 5: What is the path to your project repo?<br>
+                            ↓<br>
+    <span class="highlight">User</span>: /Users/me/my-project<br>
+                            ↓<br>
+    <span class="highlight">Agent</span>: [Reads project structure, understands tech stack]<br>
+                            ↓<br>
+    <span class="highlight">Agent</span>: 📋 Question 2 of 5 → ... → Question 5 of 5<br>
+                            ↓<br>
+    <span class="highlight">Agent</span>: [Shows full card in markdown for review]<br>
+                            ↓<br>
+    <span class="highlight">User</span>: "Looks good, create it"<br>
+                            ↓<br>
+    <span class="green-hl">Agent</span>: [Creates card via Trello API, shares URL] ✓
+  </div>
+  <span class="slide-number">4</span>
+</div>
+
+<!-- Slide 5: Trello Agent Design Decisions -->
+<div class="slide">
+  <h2>Trello Agent — Key Design Decisions</h2>
+  <div class="card-row">
+    <div class="card">
+      <h3>🎯 One Question at a Time</h3>
+      <p>Rule #1 in the prompt. Prevents overwhelming the user. Creates a natural conversation flow instead of a form dump.</p>
+    </div>
+    <div class="card">
+      <h3>✂️ Auto-Split Large Stories</h3>
+      <p>Stories &gt; 5 SP are automatically broken into smaller deliverable units. Each sub-story is independently testable.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Approval Gate</h3>
+      <p>Never creates a card without explicit user approval. Shows the full card first, waits for confirmation.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card">
+      <h3>📖 Context-Aware</h3>
+      <p>Reads the project repo to understand the tech stack before crafting the story. Stories reference actual frameworks and patterns.</p>
+    </div>
+    <div class="card">
+      <h3>🏷️ Auto-Labelling</h3>
+      <p>Assigns [BE]/[FE] labels automatically. Creates labels on the board if they don't exist yet.</p>
+    </div>
+    <div class="card">
+      <h3>🔧 Env Var Credentials</h3>
+      <p>API keys stored in shell profile as env vars. Never hardcoded in the agent config. Setup script handles this.</p>
+    </div>
+  </div>
+  <span class="slide-number">5</span>
+</div>
+
+<!-- Slide 5b: Trello Agent — Learnings & Iterations -->
+<div class="slide">
+  <h2>Trello Agent — Learnings &amp; Iterations</h2>
+  <p style="font-size: 22px; margin-bottom: 24px;">The agent didn't work perfectly on day one. Here's how we iterated:</p>
+  <div class="card-row">
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Giant user stories</h3>
+      <p>Initially the agent created massive stories with 10+ tasks, touching both BE and FE. Too big to deliver in one sprint.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Auto-split rule</h3>
+      <p>Added "stories &gt; 5 SP must be split into smaller deliverable units." Now it automatically breaks them down and shows all sub-stories for approval.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Question dump</h3>
+      <p>Agent asked all 5 questions in a single message. Felt like filling a form, not having a conversation.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Rule #1 — one question at a time</h3>
+      <p>Made it the highest priority rule in the prompt. Added the "📋 Question X of Y" format to enforce structure.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Tasks before scenarios</h3>
+      <p>Agent jumped straight to implementation tasks. Business scenarios (Given/When/Then) were missing or came last.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Strict section ordering</h3>
+      <p>Enforced: User Story → Business Scenarios → Tasks → Acceptance Criteria. BDD scenarios must come before any technical details.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Created cards without asking</h3>
+      <p>Agent sometimes created the Trello card immediately without showing it first. No chance to review or edit.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Approval gate</h3>
+      <p>Added explicit rule: "Never create a card without approval. Show the full card in markdown first. WAIT for confirmation."</p>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 16px;">
+    <p><strong>Takeaway:</strong> Agent prompts need to be iterated. Start simple, observe what goes wrong, add specific rules to fix each behaviour. The more precise the constraint, the better the output.</p>
+  </div>
+  <span class="slide-number">6</span>
+</div>
+
+<!-- Slide 6: Agent 2 — Test Reporter -->
+<div class="slide">
+  <h2>Agent 2: <span class="accent">@test-reporter</span></h2>
+  <p style="font-size: 22px; margin-bottom: 24px;">A QA reporting agent that generates stakeholder-friendly test reports with charts and PDF output.</p>
+  <div class="two-col">
+    <div>
+      <h3>6-Step Pipeline</h3>
+      <ul>
+        <li><strong>Step 1:</strong> Run tests &amp; collect all data</li>
+        <li><strong>Step 2:</strong> Classify defects in plain English</li>
+        <li><strong>Step 3:</strong> Generate self-contained HTML report</li>
+        <li><strong>Step 4:</strong> Convert to PDF (puppeteer-cli)</li>
+        <li><strong>Step 5:</strong> Update history.json for trends</li>
+        <li><strong>Step 6:</strong> Confirm output to terminal</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Report Sections</h3>
+      <ul>
+        <li>Executive Summary (go/no-go in 90 sec)</li>
+        <li>Test Execution Summary + Charts</li>
+        <li>Defect Summary + Severity Table</li>
+        <li>Test Coverage Analysis</li>
+        <li>Risk Assessment</li>
+        <li>Environment &amp; Configuration</li>
+        <li>Recommendations &amp; Next Steps</li>
+      </ul>
+    </div>
+  </div>
+  <span class="slide-number">6</span>
+</div>
+
+<!-- Slide 7: Test Reporter — Verdict Logic -->
+<div class="slide">
+  <h2>Test Reporter — Verdict System</h2>
+  <p style="margin-bottom: 30px;">Every report ends with a clear release recommendation:</p>
+  <div class="card-row">
+    <div class="card" style="border-color: #639922;">
+      <h3 class="green">✅ Safe to Release</h3>
+      <p>Pass rate ≥ 95%<br>AND 0 critical defects</p>
+      <div style="margin-top: 12px;"><span class="tag tag-green">GREEN</span></div>
+    </div>
+    <div class="card" style="border-color: #EF9F27;">
+      <h3 class="amber">⚠️ Release with Caution</h3>
+      <p>Pass rate 85–94%<br>OR 1–2 critical defects</p>
+      <div style="margin-top: 12px;"><span class="tag tag-amber">AMBER</span></div>
+    </div>
+    <div class="card" style="border-color: #E24B4A;">
+      <h3 class="red">🛑 Do Not Release</h3>
+      <p>Pass rate &lt; 85%<br>OR 3+ critical defects</p>
+      <div style="margin-top: 12px;"><span class="tag tag-red">RED</span></div>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 30px;">
+    <p><strong>Writing Rule:</strong> Never say "92% pass rate" alone — say "which means 9 in every 10 features are working as expected." Every number must have meaning for a business reader.</p>
+  </div>
+  <span class="slide-number">7</span>
+</div>
+
+<!-- Slide 8: Test Reporter — Defect Translation -->
+<div class="slide">
+  <h2>Test Reporter — Plain English Translation</h2>
+  <p style="margin-bottom: 30px;">Technical errors are translated for stakeholders:</p>
+  <table>
+    <tr><th>Technical Error</th><th>Report Says</th><th>Severity</th></tr>
+    <tr><td style="color:#E24B4A;">NullPointerException</td><td>Part of the app crashed unexpectedly</td><td><span class="tag tag-red">Critical</span></td></tr>
+    <tr><td style="color:#E24B4A;">API timeout / 504</td><td>The app took too long to get a response</td><td><span class="tag tag-amber">High</span></td></tr>
+    <tr><td style="color:#EF9F27;">AssertionError</td><td>The result didn't match what we expected</td><td><span class="tag tag-amber">Medium</span></td></tr>
+    <tr><td style="color:#EF9F27;">404 not found</td><td>A page or resource couldn't be found</td><td><span class="tag tag-amber">Medium</span></td></tr>
+    <tr><td style="color:#E24B4A;">DB connection refused</td><td>The app couldn't reach the database</td><td><span class="tag tag-red">Critical</span></td></tr>
+    <tr><td style="color:#EF9F27;">CORS error</td><td>A security setting blocked the request</td><td><span class="tag tag-amber">Medium</span></td></tr>
+  </table>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p><strong>Rule:</strong> Never include raw stack traces, error codes, class names, or line numbers in the report.</p>
+  </div>
+  <span class="slide-number">8</span>
+</div>
+
+<!-- Slide 8b: Test Reporter — Learnings & Iterations -->
+<div class="slide">
+  <h2>Test Reporter — Learnings &amp; Iterations</h2>
+  <p style="font-size: 22px; margin-bottom: 24px;">Building this agent taught us about the boundary between hooks and agents:</p>
+  <div class="card-row">
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Hook tried to generate the report</h3>
+      <p>First version — the hook itself generated a markdown report using bash. Output was basic tables with no analysis, no charts, no defect classification.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Hook collects data, agent generates report</h3>
+      <p>Separated concerns. Hook captures test output + metadata. Agent (with LLM intelligence) does the analysis, translation, and HTML generation.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Hook on wrong agent</h3>
+      <p>Put the hook on the test-reporter agent itself. But the agent's prompt already tells it to generate reports — making the hook redundant.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Understood when hooks add value</h3>
+      <p>Hooks add value when they do something the agent's prompt doesn't cover — like auto-triggering from a different agent, or blocking/logging silently.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Skipped report on test failures</h3>
+      <p>Agent sometimes asked "tests failed, should I still generate a report?" instead of just doing it.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: "ALWAYS generate" rule</h3>
+      <p>Added explicit instruction: "Report generation must NEVER be skipped or made conditional on test results. Even if all tests fail, produce the report."</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #E24B4A;">
+      <h3 class="red">Problem: Technical jargon in reports</h3>
+      <p>Early reports included raw stack traces, class names, and HTTP status codes. Useless for business stakeholders.</p>
+      <h3 class="green" style="margin-top: 16px;">Fix: Translation table + writing rules</h3>
+      <p>Added explicit error-to-English mappings and 5 strict writing rules. "NullPointerException" → "Part of the app crashed unexpectedly."</p>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 16px;">
+    <p><strong>Takeaway:</strong> If it needs LLM reasoning (classify, summarize, translate) → it's an agent's job. If it's deterministic (format, block, log) → it's a hook's job. Don't mix them.</p>
+  </div>
+  <span class="slide-number">10</span>
+</div>
+
+<!-- Slide 12: Key Learnings -->
+<div class="slide">
+  <h2>Key Learnings 💡</h2>
+  <div class="card-row">
+    <div class="card">
+      <h3>1. Iterate on prompts</h3>
+      <p>Agent prompts don't work perfectly on day one. Start simple, observe what goes wrong, add specific rules to fix each behaviour.</p>
+    </div>
+    <div class="card">
+      <h3>2. One agent, one job</h3>
+      <p>Combining too many responsibilities in one agent dilutes quality. Better to have focused agents and switch between them.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card">
+      <h3>3. Explicit rules beat vague instructions</h3>
+      <p>"Ask one question at a time" works. "Be conversational" doesn't. The more precise the constraint, the better the output.</p>
+    </div>
+    <div class="card">
+      <h3>4. Always add an approval gate</h3>
+      <p>For agents that take real-world actions (API calls, card creation, deployments) — always show the output first and wait for user confirmation.</p>
+    </div>
+  </div>
+  <div class="card-row">
+    <div class="card">
+      <h3>5. Context-awareness matters</h3>
+      <p>Reading the project repo before generating stories or reports makes the output significantly more relevant and accurate.</p>
+    </div>
+    <div class="card">
+      <h3>6. Translate for your audience</h3>
+      <p>Technical output is useless for stakeholders. Explicit translation rules ("NullPointerException" → "app crashed") make reports actually useful.</p>
+    </div>
+  </div>
+  <span class="slide-number">12</span>
+</div>
+
+<!-- Slide 13: When to use what -->
+<div class="slide">
+  <h2>Decision Framework</h2>
+  <p style="font-size: 22px; margin-bottom: 30px;">When to use an agent vs a hook:</p>
+  <table>
+    <tr><th>Need</th><th>Use</th><th>Why</th></tr>
+    <tr><td>Generate a test report with analysis</td><td><span class="tag tag-blue">Agent</span></td><td>Needs LLM to classify defects, write summaries</td></tr>
+    <tr><td>Auto-format code after write</td><td><span class="tag tag-green">Hook</span></td><td>Deterministic — just run prettier</td></tr>
+    <tr><td>Block writes to .env files</td><td><span class="tag tag-green">Hook</span></td><td>Simple path check, exit code 2</td></tr>
+    <tr><td>Create Trello stories</td><td><span class="tag tag-blue">Agent</span></td><td>Needs conversation, reasoning, API calls</td></tr>
+    <tr><td>Scan for hardcoded secrets</td><td><span class="tag tag-green">Hook</span></td><td>Regex scan, no reasoning needed</td></tr>
+    <tr><td>Load git status on start</td><td><span class="tag tag-green">Hook</span></td><td>agentSpawn — inject context automatically</td></tr>
+    <tr><td>Debug failing tests</td><td><span class="tag tag-blue">Agent</span></td><td>Needs LLM to analyze errors and suggest fixes</td></tr>
+    <tr><td>Log every tool call for audit</td><td><span class="tag tag-green">Hook</span></td><td>Append to file — no intelligence needed</td></tr>
+  </table>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p><strong>Rule of thumb:</strong> If it needs reasoning → Agent. If it's a script → Hook.</p>
+  </div>
+  <span class="slide-number">13</span>
+</div>
+
+<!-- Slide 15: Thank You -->
+<div class="slide" style="text-align: center;">
+  <div class="big-emoji">🚀</div>
+  <h1>Thank You</h1>
+  <p class="subtitle" style="margin-top: 20px;">github.com/sahil-2409/kiro-agents</p>
+  <div style="margin-top: 40px;">
+    <span class="tag tag-blue">@trello</span>
+    <span class="tag tag-green">@test-reporter</span>
+    <span class="tag tag-amber">Hooks</span>
+  </div>
+  <p style="margin-top: 40px; color: #444;"></p>
+  <span class="slide-number">15</span>
+</div>
+
+</body>
+</html>

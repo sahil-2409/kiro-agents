@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG & Vector DB — From Concept to Production</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; }
+.slide { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 60px 80px; border-bottom: 1px solid #222; position: relative; }
+.slide-number { position: absolute; bottom: 30px; right: 40px; color: #555; font-size: 14px; }
+h1 { font-size: 52px; font-weight: 700; margin-bottom: 20px; }
+h2 { font-size: 38px; font-weight: 600; margin-bottom: 30px; color: #e0e0e0; }
+h3 { font-size: 26px; font-weight: 600; margin-bottom: 16px; color: #ccc; }
+p, li { font-size: 22px; line-height: 1.7; color: #bbb; }
+ul { list-style: none; padding-left: 0; }
+ul li { padding: 8px 0; padding-left: 30px; position: relative; }
+ul li::before { content: "→"; position: absolute; left: 0; color: #378ADD; font-weight: bold; }
+.accent { color: #378ADD; }
+.green { color: #639922; }
+.amber { color: #EF9F27; }
+.red { color: #E24B4A; }
+.tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; margin: 4px; }
+.tag-blue { background: #1a3a5c; color: #378ADD; }
+.tag-green { background: #1a3a1a; color: #639922; }
+.tag-amber { background: #3a2a0a; color: #EF9F27; }
+.tag-red { background: #3a1a1a; color: #E24B4A; }
+.card-row { display: flex; gap: 24px; margin: 20px 0; flex-wrap: wrap; }
+.card { flex: 1; min-width: 280px; background: #151515; border: 1px solid #2a2a2a; border-radius: 12px; padding: 28px; }
+.card h3 { margin-bottom: 12px; }
+.code { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 16px; color: #a0c4ff; margin: 16px 0; overflow-x: auto; white-space: pre; line-height: 1.6; }
+.diagram { background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; line-height: 2; color: #888; }
+.diagram .highlight { color: #378ADD; font-weight: bold; }
+.diagram .green-hl { color: #639922; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid #222; font-size: 18px; }
+th { color: #378ADD; font-weight: 600; background: #111; }
+td { color: #bbb; }
+.subtitle { font-size: 24px; color: #666; margin-bottom: 40px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.learning-box { background: linear-gradient(135deg, #0C447C22, #0C447C11); border-left: 4px solid #378ADD; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+.learning-box p { color: #a0c4ff; font-size: 20px; }
+.vector-space { position: relative; background: #111; border: 1px solid #333; border-radius: 12px; padding: 40px; margin: 20px 0; height: 400px; overflow: hidden; }
+.vector-dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; transition: all 1s ease; }
+.vector-dot .label { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 14px; white-space: nowrap; }
+p:hover, li:hover, td:hover, .learning-box:hover { color: #fff; text-shadow: 0 0 8px #378ADD44; transform: translateX(4px); }
+h2:hover { text-shadow: 0 0 12px #378ADD66; }
+.card:hover { border-color: #378ADD; background: #1a1a2a; transform: translateY(-2px); box-shadow: 0 4px 20px #378ADD22; }
+.code:hover { border-color: #378ADD; box-shadow: 0 0 15px #378ADD22; }
+.diagram:hover { border-color: #378ADD; box-shadow: 0 0 15px #378ADD22; }
+tr:hover td { color: #fff; background: #151520; }
+p, li, td, th, h2, h3, .code, .learning-box, .card { transition: all 0.3s ease; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 5px #378ADD44; } 50% { box-shadow: 0 0 20px #378ADD88; } }
+@keyframes ripple { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(2.5); opacity: 0; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.slide-1-icon .main { font-size: 56px; animation: pulse 2.5s ease-in-out infinite; position: relative; z-index: 2; }
+.slide-1-icon .ripple-ring { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border: 2px solid #378ADD44; border-radius: 50%; animation: ripple 3s ease-out infinite; }
+.slide-1-icon .ripple-ring:nth-child(2) { animation-delay: 1s; }
+.slide-1-icon .ripple-ring:nth-child(3) { animation-delay: 2s; }
+.cursor::after { content: "▌"; animation: blink 0.8s step-end infinite; color: #378ADD; }
+.fade-in { animation: fadeInUp 0.8s ease-out both; }
+.fade-in-1 { animation-delay: 0.3s; }
+.fade-in-2 { animation-delay: 0.6s; }
+.fade-in-3 { animation-delay: 0.9s; }
+.fade-in-4 { animation-delay: 1.2s; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<div class="slide" style="text-align: center; overflow: hidden; position: relative; background: radial-gradient(ellipse at center, #0a1628 0%, #000 70%);">
+  <style>
+    @keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+    @keyframes shootingStar { 0% { transform: translateX(-100px) translateY(-100px); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateX(400px) translateY(400px); opacity: 0; } }
+    @keyframes constellationDraw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+    @keyframes titleFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .star { position: absolute; width: 3px; height: 3px; background: #fff; border-radius: 50%; animation: twinkle 3s ease-in-out infinite; transition: transform 0.8s ease, opacity 0.8s ease; }
+    .shooting-star { position: absolute; width: 80px; height: 2px; background: linear-gradient(90deg, #fff, transparent); border-radius: 2px; animation: shootingStar 4s ease-in-out infinite; }
+    .constellation-svg { transition: transform 0.6s ease; }
+    .slide:hover .star:nth-child(odd) { transform: translate(15px, -10px) scale(1.5); }
+    .slide:hover .star:nth-child(even) { transform: translate(-12px, 14px) scale(1.3); }
+    .slide:hover .constellation-svg { transform: translate(8px, -5px) rotate(1deg); }
+    .opt3-title { font-size: 60px; font-weight: 800; background: linear-gradient(180deg, #fff 0%, #378ADD 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: titleFadeUp 1s ease 0.6s forwards, titleBlink 4s ease-in-out 1.6s infinite; opacity: 0; }
+    @keyframes titleBlink { 0%, 100% { filter: brightness(0.7) drop-shadow(0 0 5px #378ADD22); } 50% { filter: brightness(1.4) drop-shadow(0 0 30px #378ADDcc); } }
+    .constellation-svg line { stroke-dasharray: 1000; animation: constellationDraw 3s ease forwards; }
+    .title-fade-1 { animation: titleFadeUp 1s ease 0.3s forwards; opacity: 0; }
+    .title-fade-2 { animation: titleFadeUp 1s ease 0.6s forwards; opacity: 0; }
+    .title-fade-3 { animation: titleFadeUp 1s ease 0.9s forwards; opacity: 0; }
+    .title-fade-4 { animation: titleFadeUp 1s ease 1.2s forwards; opacity: 0; }
+  </style>
+  <!-- Stars -->
+  <div class="star" style="top:8%;left:12%;animation-delay:0s;"></div>
+  <div class="star" style="top:15%;left:45%;animation-delay:0.5s;"></div>
+  <div class="star" style="top:22%;left:78%;animation-delay:1s;"></div>
+  <div class="star" style="top:35%;left:8%;animation-delay:1.5s;"></div>
+  <div class="star" style="top:55%;left:92%;animation-delay:0.3s;"></div>
+  <div class="star" style="top:68%;left:20%;animation-delay:0.8s;"></div>
+  <div class="star" style="top:75%;left:65%;animation-delay:1.2s;"></div>
+  <div class="star" style="top:88%;left:40%;animation-delay:0.6s;"></div>
+  <div class="star" style="top:42%;left:55%;animation-delay:1.8s;width:5px;height:5px;background:#378ADD;"></div>
+  <div class="star" style="top:30%;left:35%;animation-delay:2s;width:4px;height:4px;background:#EF9F27;"></div>
+  <div class="star" style="top:60%;left:72%;animation-delay:0.4s;"></div>
+  <div class="star" style="top:18%;left:88%;animation-delay:1.1s;"></div>
+  <div class="star" style="top:82%;left:85%;animation-delay:1.7s;"></div>
+  <div class="star" style="top:45%;left:5%;animation-delay:2.2s;"></div>
+  <!-- Shooting stars -->
+  <div class="shooting-star" style="top:20%;left:60%;animation-delay:2s;"></div>
+  <div class="shooting-star" style="top:50%;left:30%;animation-delay:5s;"></div>
+  <div class="shooting-star" style="top:70%;left:70%;animation-delay:8s;"></div>
+  <!-- Constellation lines -->
+  <svg class="constellation-svg" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.3;">
+    <line x1="12%" y1="8%" x2="45%" y2="15%" stroke="#378ADD" stroke-width="0.5"/>
+    <line x1="45%" y1="15%" x2="78%" y2="22%" stroke="#378ADD" stroke-width="0.5"/>
+    <line x1="45%" y1="15%" x2="35%" y2="30%" stroke="#EF9F27" stroke-width="0.5"/>
+    <line x1="35%" y1="30%" x2="55%" y2="42%" stroke="#378ADD" stroke-width="0.5"/>
+    <line x1="55%" y1="42%" x2="65%" y2="75%" stroke="#639922" stroke-width="0.5"/>
+    <line x1="8%" y1="35%" x2="35%" y2="30%" stroke="#378ADD" stroke-width="0.5"/>
+    <line x1="20%" y1="68%" x2="40%" y2="88%" stroke="#378ADD" stroke-width="0.5"/>
+    <line x1="72%" y1="60%" x2="92%" y2="55%" stroke="#639922" stroke-width="0.5"/>
+    <line x1="78%" y1="22%" x2="88%" y2="18%" stroke="#EF9F27" stroke-width="0.5"/>
+  </svg>
+  <!-- Content -->
+  <div style="position:relative;z-index:2;">
+    <p class="title-fade-1" style="font-size: 16px; letter-spacing: 6px; color: #378ADD; margin-bottom: 20px; text-transform: uppercase;">Navigating the AI Universe</p>
+    <h1 class="opt3-title">RAG & Vector Databases</h1>
+    <p class="title-fade-2" style="color: #6688aa; margin-top: 10px; font-size: 24px;">From Concept to Production — A Deep Dive</p>
+    <p class="title-fade-3" style="color: #445566; margin-top: 40px;">Sahil Kapoor · May 2026</p>
+    <div class="title-fade-4" style="margin-top: 20px;">
+      <span class="tag tag-blue">RAG</span>
+      <span class="tag tag-green">Vector DB</span>
+      <span class="tag tag-amber">Embeddings</span>
+      <span class="tag tag-red">Ollama</span>
+    </div>
+  </div>
+  <span class="slide-number">1</span>
+</div>
+
+<!-- Slide 2: What is RAG? -->
+<div class="slide">
+  <h2>What is <span class="accent">RAG</span>?</h2>
+  <p style="font-size: 24px; margin-bottom: 30px;">Retrieval-Augmented Generation — Give your LLM access to <span class="accent">your data</span></p>
+  <div class="card-row">
+    <div class="card">
+      <h3>❌ Without RAG</h3>
+      <p>LLM only knows its training data. Ask about your company docs? It <span class="red">hallucinates</span>.</p>
+    </div>
+    <div class="card">
+      <h3>✅ With RAG</h3>
+      <p>LLM gets <span class="green">relevant context</span> from your documents before answering. Grounded, accurate.</p>
+    </div>
+  </div>
+  <div class="diagram" style="margin-top: 30px;">
+    <span class="highlight">User Question</span> → <span class="green-hl">Retrieve Relevant Docs</span> → Inject as Context → <span class="highlight">LLM Generates Answer</span>
+  </div>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p>💡 RAG = "Look it up, then answer" — like an open-book exam for AI</p>
+  </div>
+  <span class="slide-number">2</span>
+</div>
+
+<!-- Slide 3: R-A-G Breakdown — Step by Step -->
+<div class="slide" style="padding: 40px 60px;">
+  <h2 style="text-align: center;"><span class="accent">R</span>etrieval · <span class="green">A</span>ugmented · <span class="amber">G</span>eneration</h2>
+  <p style="text-align: center; color: #888; margin-bottom: 10px;">Example: "What are the box cricket rules for our tournament?"</p>
+  <style>
+    .rag-flow { display: flex; align-items: stretch; gap: 0; margin: 30px 0; position: relative; }
+    .rag-step { flex: 1; padding: 24px 20px; border-radius: 16px; position: relative; transition: all 0.3s ease; }
+    .rag-step:hover { transform: translateY(-6px); }
+    .rag-step-num { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+    .rag-step-title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .rag-step-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+    .rag-step-desc { font-size: 14px; line-height: 1.5; }
+    .rag-step-example { font-size: 13px; margin-top: 10px; padding: 10px; border-radius: 8px; font-family: monospace; line-height: 1.4; }
+    .rag-arrow { display: flex; align-items: center; justify-content: center; font-size: 28px; min-width: 50px; position: relative; }
+    @keyframes arrowPulse { 0%, 100% { opacity: 0.4; transform: translateX(0); } 50% { opacity: 1; transform: translateX(5px); } }
+    .rag-arrow span { animation: arrowPulse 1.5s ease-in-out infinite; display: inline-block; }
+    .rag-arrow:nth-child(4) span { animation-delay: 0.3s; }
+    .rag-arrow:nth-child(6) span { animation-delay: 0.6s; }
+    .rag-arrow:nth-child(8) span { animation-delay: 0.9s; }
+    @keyframes stepReveal1 { 0%, 100% { border-color: #378ADD88; box-shadow: 0 0 20px #378ADD22; } 50% { border-color: #378ADD; box-shadow: 0 0 30px #378ADD44; } }
+    @keyframes stepReveal2 { 0%, 100% { border-color: #63992288; box-shadow: 0 0 20px #63992222; } 50% { border-color: #639922; box-shadow: 0 0 30px #63992244; } }
+    @keyframes stepReveal3 { 0%, 100% { border-color: #EF9F2788; box-shadow: 0 0 20px #EF9F2722; } 50% { border-color: #EF9F27; box-shadow: 0 0 30px #EF9F2744; } }
+    @keyframes stepReveal4 { 0%, 100% { border-color: #63992288; box-shadow: 0 0 20px #63992222; } 50% { border-color: #639922; box-shadow: 0 0 30px #63992244; } }
+    .step-r { background: #0a0a1a; border: 2px solid #378ADD88; animation: stepReveal1 3s ease-in-out infinite; }
+    .step-a { background: #0a1a0a; border: 2px solid #63992288; animation: stepReveal2 3s ease-in-out infinite 0.5s; }
+    .step-g { background: #1a1a0a; border: 2px solid #EF9F2788; animation: stepReveal3 3s ease-in-out infinite 1s; }
+    .step-done { background: #0a1a0a; border: 2px solid #63992288; animation: stepReveal4 3s ease-in-out infinite 1.5s; }
+  </style>
+  <div class="rag-flow">
+    <!-- Step 1: User Query -->
+    <div class="rag-step" style="background: #111; border: 2px solid #333; max-width: 140px;">
+      <span class="rag-step-icon">👤</span>
+      <div class="rag-step-title" style="color: #888;">Step 1</div>
+      <p class="rag-step-desc" style="color: #aaa;">User asks a question</p>
+      <div class="rag-step-example" style="background: #1a1a1a; color: #fff;">"What are the cricket rules?"</div>
+    </div>
+    <div class="rag-arrow"><span style="color: #378ADD;">→</span></div>
+    <!-- Step 2: RETRIEVAL -->
+    <div class="rag-step step-r">
+      <div class="rag-step-num" style="background: #378ADD; color: #fff;">R</div>
+      <div class="rag-step-title" style="color: #378ADD;">Retrieval</div>
+      <span class="rag-step-icon" style="animation: floatSmooth 2s ease-in-out infinite;">📄🔍</span>
+      <p class="rag-step-desc" style="color: #a0c4ff;">Embed the query → search vector DB → find top 5 matching chunks</p>
+      <div class="rag-step-example" style="background: #378ADD11; color: #a0c4ff;">embed("cricket rules")
+→ pgvector cosine search
+→ [chunk #3, #7, #1...]</div>
+    </div>
+    <div class="rag-arrow"><span style="color: #639922;">→</span></div>
+    <!-- Step 3: AUGMENTED -->
+    <div class="rag-step step-a">
+      <div class="rag-step-num" style="background: #639922; color: #fff;">A</div>
+      <div class="rag-step-title" style="color: #639922;">Augmented</div>
+      <span class="rag-step-icon">📋➕🤖</span>
+      <p class="rag-step-desc" style="color: #88cc88;">Inject retrieved chunks into the LLM prompt as context</p>
+      <div class="rag-step-example" style="background: #63992211; color: #88cc88;">System: "Answer based on:
+[chunk #3] Each team has
+8 players, max 2 overs
+per bowler..."</div>
+    </div>
+    <div class="rag-arrow"><span style="color: #EF9F27;">→</span></div>
+    <!-- Step 4: GENERATION -->
+    <div class="rag-step step-g">
+      <div class="rag-step-num" style="background: #EF9F27; color: #fff;">G</div>
+      <div class="rag-step-title" style="color: #EF9F27;">Generation</div>
+      <span class="rag-step-icon">🤖💬</span>
+      <p class="rag-step-desc" style="color: #EF9F27;">LLM generates answer grounded in the retrieved context</p>
+      <div class="rag-step-example" style="background: #EF9F2711; color: #EF9F27;">LLM reads context
++ user question
+→ generates answer</div>
+    </div>
+    <div class="rag-arrow"><span style="color: #639922;">→</span></div>
+    <!-- Step 5: Result -->
+    <div class="rag-step step-done" style="max-width: 160px;">
+      <span class="rag-step-icon">✅</span>
+      <div class="rag-step-title" style="color: #639922;">Result</div>
+      <p class="rag-step-desc" style="color: #639922;">"Each team has 8 players, max 2 overs per bowler, boundaries are 4 runs."</p>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p>💡 <strong>R</strong>etrieval finds the right docs · <strong>A</strong>ugmented injects them as context · <strong>G</strong>eneration produces a grounded answer</p>
+  </div>
+  <span class="slide-number">3</span>
+</div>
+
+<!-- Slide 4: Without RAG — Step by Step -->
+<div class="slide" style="padding: 40px 60px;">
+  <h2 style="text-align: center;">Without RAG — <span class="red">Just Generation</span></h2>
+  <p style="text-align: center; color: #888; margin-bottom: 10px;">Same question: "What are the box cricket rules for our tournament?"</p>
+  <style>
+    .norag-flow { display: flex; align-items: stretch; gap: 0; margin: 50px auto; max-width: 900px; justify-content: center; }
+    .norag-step { padding: 28px 24px; border-radius: 16px; position: relative; transition: all 0.3s ease; flex: 1; max-width: 260px; }
+    .norag-step:hover { transform: translateY(-6px); }
+    .norag-arrow { display: flex; align-items: center; justify-content: center; font-size: 28px; min-width: 50px; }
+    @keyframes arrowPulseRed { 0%, 100% { opacity: 0.4; transform: translateX(0); } 50% { opacity: 1; transform: translateX(5px); } }
+    .norag-arrow span { animation: arrowPulseRed 1.5s ease-in-out infinite; display: inline-block; }
+    @keyframes redGlow { 0%, 100% { border-color: #E24B4A55; box-shadow: 0 0 15px #E24B4A11; } 50% { border-color: #E24B4A; box-shadow: 0 0 30px #E24B4A33; } }
+    .step-norag { background: #1a0a0a; border: 2px solid #E24B4A55; animation: redGlow 3s ease-in-out infinite; }
+    .step-norag-mid { animation-delay: 0.5s; }
+    .step-norag-end { animation-delay: 1s; }
+    .missing-step { border: 2px dashed #33333388; background: #0a0a0a; opacity: 0.4; }
+    @keyframes crossOut { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    .cross-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 48px; animation: crossOut 2s ease-in-out infinite; }
+  </style>
+  <div class="norag-flow">
+    <!-- Step 1: User Query -->
+    <div class="norag-step" style="background: #111; border: 2px solid #378ADD55;">
+      <span style="font-size: 36px; display: block; margin-bottom: 12px;">👤</span>
+      <div class="rag-step-title" style="color: #378ADD;">Step 1</div>
+      <p class="rag-step-desc" style="color: #aaa;">User asks a question</p>
+      <div class="rag-step-example" style="background: #1a1a1a; color: #fff;">"What are the cricket rules?"</div>
+    </div>
+    <div class="norag-arrow"><span style="color: #E24B4A;">→</span></div>
+    <!-- Step 2: NO RETRIEVAL (missing) -->
+    <div class="norag-step missing-step" style="position: relative;">
+      <div class="cross-overlay">🚫</div>
+      <span style="font-size: 36px; display: block; margin-bottom: 12px;">📄🔍</span>
+      <div class="rag-step-title" style="color: #555;">No Retrieval</div>
+      <p class="rag-step-desc" style="color: #444;">No docs searched. No context found. LLM is on its own.</p>
+    </div>
+    <div class="norag-arrow"><span style="color: #E24B4A;">→</span></div>
+    <!-- Step 3: LLM Guesses -->
+    <div class="norag-step step-norag step-norag-mid">
+      <span style="font-size: 36px; display: block; margin-bottom: 12px;">🤖</span>
+      <div class="rag-step-title" style="color: #EF9F27;">Generation (blind)</div>
+      <p class="rag-step-desc" style="color: #EF9F27;">LLM generates from training data only — no context about YOUR rules</p>
+      <div class="rag-step-example" style="background: #EF9F2711; color: #EF9F27;">No context provided
+LLM uses generic knowledge
+→ guesses an answer</div>
+    </div>
+    <div class="norag-arrow"><span style="color: #E24B4A;">→</span></div>
+    <!-- Step 4: Wrong Answer -->
+    <div class="norag-step step-norag step-norag-end">
+      <span style="font-size: 36px; display: block; margin-bottom: 12px; animation: shakeHard 0.6s ease-in-out infinite;">🎲</span>
+      <div class="rag-step-title" style="color: #E24B4A;">Wrong Answer</div>
+      <p class="rag-step-desc" style="color: #E24B4A;">"In general, box cricket is played with 6 players per team..."</p>
+      <div class="rag-step-example" style="background: #E24B4A11; color: #E24B4A;">❌ Generic info
+❌ Not YOUR rules
+❌ User frustrated</div>
+    </div>
+  </div>
+  <div class="learning-box" style="max-width: 700px; margin: 0 auto; border-left-color: #E24B4A;">
+    <p style="color: #E24B4A;">⚠️ Without Retrieval & Augmentation, the LLM has no access to your documents — it can only guess from generic training data.</p>
+  </div>
+  <span class="slide-number">4</span>
+</div>
+
+<!-- Slide 5: What is a Vector Database? -->
+<div class="slide">
+  <h2>What is a <span class="accent">Vector Database</span>?</h2>
+  <p style="font-size: 24px; margin-bottom: 30px;">A database that stores and searches data by <span class="accent">meaning</span>, not exact keywords</p>
+  <div class="card-row">
+    <div class="card">
+      <h3>📦 What it stores</h3>
+      <p>High-dimensional vectors (arrays of numbers) that represent the <span class="green">semantic meaning</span> of text, images, or any data.</p>
+    </div>
+    <div class="card">
+      <h3>🔍 How it searches</h3>
+      <p>Finds the <span class="accent">most similar</span> vectors using distance metrics (cosine, euclidean) — not exact string matching.</p>
+    </div>
+    <div class="card">
+      <h3>🧠 Why it matters</h3>
+      <p>"cricket rules" matches "batting regulations" because they're <span class="green">semantically close</span> — impossible with SQL LIKE.</p>
+    </div>
+  </div>
+  <div class="diagram" style="margin-top: 30px;">
+    Traditional DB: <span class="highlight">SELECT * WHERE text LIKE '%cricket%'</span> → exact match only<br><br>
+    Vector DB: <span class="green-hl">Find nearest neighbors to embed("cricket rules")</span> → meaning-based match
+  </div>
+  <table style="margin-top: 20px;">
+    <tr><th>Feature</th><th>Traditional DB</th><th>Vector DB</th></tr>
+    <tr><td>Search type</td><td>Keyword / exact match</td><td><span class="green">Semantic similarity</span></td></tr>
+    <tr><td>Understands synonyms</td><td><span class="red">No</span></td><td><span class="green">Yes</span></td></tr>
+    <tr><td>Data format</td><td>Rows & columns</td><td>High-dimensional vectors</td></tr>
+    <tr><td>Example</td><td>PostgreSQL, MySQL</td><td><span class="accent">pgvector</span>, Pinecone, Weaviate</td></tr>
+  </table>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p>💡 We use <strong>pgvector</strong> — a PostgreSQL extension. No new infrastructure needed, just add vector columns to your existing DB.</p>
+  </div>
+  <span class="slide-number">5</span>
+</div>
+
+<!-- Slide 6: How Embeddings Work -->
+<div class="slide">
+  <h2>How <span class="accent">Embeddings</span> Work</h2>
+  <p style="margin-bottom: 20px;">Text → Numbers that capture meaning</p>
+  <div class="code" style="font-size: 18px;">"King"    → [0.21, 0.85, 0.12, 0.67, ..., 0.43]   // 768 dimensions
+"Queen"   → [0.19, 0.82, 0.14, 0.71, ..., 0.41]   // very similar!
+"Apple"   → [0.91, 0.03, 0.78, 0.11, ..., 0.88]   // completely different</div>
+  <div class="card-row" style="margin-top: 30px;">
+    <div class="card">
+      <h3>🔢 What's a dimension?</h3>
+      <p>Each number captures one aspect of meaning: royalty, gender, power, food, etc.</p>
+    </div>
+    <div class="card">
+      <h3>📐 How to compare?</h3>
+      <p><span class="accent">Cosine similarity</span> — measures the angle between two vectors. Closer = more similar.</p>
+    </div>
+    <div class="card">
+      <h3>🤖 Who creates them?</h3>
+      <p>Embedding models: <span class="green">nomic-embed-text</span> (Ollama), OpenAI text-embedding-3-small</p>
+    </div>
+  </div>
+  <span class="slide-number">6</span>
+</div>
+
+<!-- Slide 7: Cosine Similarity — How Vectors are Compared -->
+<div class="slide">
+  <h2>How are vectors compared? <span class="accent">Cosine Similarity</span></h2>
+  <p style="margin-bottom: 20px;">Measures the <span class="accent">angle</span> between two vectors — not the distance</p>
+  <div class="two-col">
+    <div>
+      <div class="diagram" style="height: 280px; position: relative; text-align: left; padding: 20px;">
+        <svg width="100%" height="250" viewBox="0 0 300 250" style="display: block; margin: 0 auto;">
+          <!-- Axes -->
+          <line x1="40" y1="220" x2="280" y2="220" stroke="#333" stroke-width="1"/>
+          <line x1="40" y1="220" x2="40" y2="20" stroke="#333" stroke-width="1"/>
+          <text x="285" y="225" fill="#555" font-size="12">dim 1</text>
+          <text x="20" y="15" fill="#555" font-size="12">dim 2</text>
+          <!-- Vector A (King) -->
+          <line x1="40" y1="220" x2="220" y2="60" stroke="#378ADD" stroke-width="3" marker-end="url(#arrowBlue)"/>
+          <text x="225" y="55" fill="#378ADD" font-size="14" font-weight="bold">A "King"</text>
+          <!-- Vector B (Queen) - similar angle -->
+          <line x1="40" y1="220" x2="190" y2="80" stroke="#639922" stroke-width="3" marker-end="url(#arrowGreen)"/>
+          <text x="195" y="78" fill="#639922" font-size="14" font-weight="bold">B "Queen"</text>
+          <!-- Vector C (Pizza) - very different angle -->
+          <line x1="40" y1="220" x2="260" y2="190" stroke="#E24B4A" stroke-width="3" marker-end="url(#arrowRed)"/>
+          <text x="245" y="210" fill="#E24B4A" font-size="14" font-weight="bold">C "Pizza"</text>
+          <!-- Angle arc A-B (small) -->
+          <path d="M 100,168 A 60,60 0 0,1 88,160" fill="none" stroke="#639922" stroke-width="2"/>
+          <text x="80" y="150" fill="#639922" font-size="11">θ=15°</text>
+          <!-- Angle arc A-C (large) -->
+          <path d="M 130,185 A 100,100 0 0,1 150,195" fill="none" stroke="#E24B4A" stroke-width="2"/>
+          <text x="140" y="200" fill="#E24B4A" font-size="11">θ=72°</text>
+          <!-- Arrow markers -->
+          <defs>
+            <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#378ADD"/></marker>
+            <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#639922"/></marker>
+            <marker id="arrowRed" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#E24B4A"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <p style="text-align: center; font-size: 16px; color: #888;">Smaller angle = more similar meaning</p>
+    </div>
+    <div>
+      <h3>📐 The Formula</h3>
+      <div class="code" style="font-size: 15px;">cos(θ) = (A · B) / (|A| × |B|)
+
+Result range: -1 to 1
+  1.0 = identical meaning
+  0.0 = unrelated
+ -1.0 = opposite meaning</div>
+      <h3 style="margin-top: 20px;">🔢 Example Calculation</h3>
+      <div class="code" style="font-size: 14px;">A = "King"  → [0.9, 0.8]
+B = "Queen" → [0.85, 0.9]
+
+A · B = (0.9×0.85)+(0.8×0.9) = 1.485
+|A|  = √(0.81+0.64) = 1.204
+|B|  = √(0.72+0.81) = 1.237
+
+cos(θ) = 1.485/(1.204×1.237) = <span style="color:#639922;">0.997 ✓ Very similar!</span></div>
+    </div>
+  </div>
+  <table style="margin-top: 20px;">
+    <tr><th>Comparison</th><th>Angle</th><th>Cosine Similarity</th><th>Meaning</th></tr>
+    <tr><td>King ↔ Queen</td><td>~15°</td><td><span class="green">0.97</span></td><td>Very similar</td></tr>
+    <tr><td>King ↔ Prince</td><td>~30°</td><td><span class="amber">0.87</span></td><td>Related</td></tr>
+    <tr><td>King ↔ Pizza</td><td>~72°</td><td><span class="red">0.31</span></td><td>Unrelated</td></tr>
+  </table>
+  <span class="slide-number">7</span>
+</div>
+
+<!-- Slide 8: The "King" Example — Vector Space -->
+<div class="slide">
+  <h2>The <span class="accent">"King"</span> Example — Words in Vector Space</h2>
+  <p style="margin-bottom: 20px;">Words with similar meaning are <span class="green">close together</span> in vector space</p>
+  <div class="vector-space" style="height: 350px;">
+    <div class="vector-dot" style="background: #378ADD; top: 30%; left: 40%; animation: glow 2s infinite;"><span class="label" style="color: #378ADD; font-weight: bold; font-size: 18px;">👑 King</span></div>
+    <div class="vector-dot" style="background: #639922; top: 35%; left: 48%; animation: glow 2s infinite 0.3s;"><span class="label" style="color: #639922;">Queen</span></div>
+    <div class="vector-dot" style="background: #639922; top: 25%; left: 44%; animation: glow 2s infinite 0.6s;"><span class="label" style="color: #639922;">Monarch</span></div>
+    <div class="vector-dot" style="background: #639922; top: 38%; left: 36%; animation: glow 2s infinite 0.9s;"><span class="label" style="color: #639922;">Ruler</span></div>
+    <div class="vector-dot" style="background: #EF9F27; top: 45%; left: 52%; animation: glow 2s infinite 1.2s;"><span class="label" style="color: #EF9F27;">Prince</span></div>
+    <div class="vector-dot" style="background: #EF9F27; top: 22%; left: 50%; animation: glow 2s infinite 1.5s;"><span class="label" style="color: #EF9F27;">Throne</span></div>
+    <div class="vector-dot" style="background: #E24B4A; top: 70%; left: 75%; animation: glow 2s infinite 1.8s;"><span class="label" style="color: #E24B4A;">Apple</span></div>
+    <div class="vector-dot" style="background: #E24B4A; top: 75%; left: 20%; animation: glow 2s infinite 2.1s;"><span class="label" style="color: #E24B4A;">Car</span></div>
+    <div class="vector-dot" style="background: #E24B4A; top: 65%; left: 15%; animation: glow 2s infinite 2.4s;"><span class="label" style="color: #E24B4A;">Pizza</span></div>
+  </div>
+  <table>
+    <tr><th>Word</th><th>Distance from "King"</th><th>Similarity</th></tr>
+    <tr><td>Queen</td><td>0.12</td><td><span class="green">Very Close ●●●●○</span></td></tr>
+    <tr><td>Monarch</td><td>0.15</td><td><span class="green">Close ●●●○○</span></td></tr>
+    <tr><td>Prince</td><td>0.28</td><td><span class="amber">Related ●●○○○</span></td></tr>
+    <tr><td>Apple</td><td>0.89</td><td><span class="red">Unrelated ●○○○○</span></td></tr>
+  </table>
+  <span class="slide-number">8</span>
+</div>
+
+<!-- Slide 9: Phase 1 — Flat Tool Architecture -->
+<div class="slide">
+  <h2>Phase 1: <span class="accent">Single Agent Router</span></h2>
+  <p style="margin-bottom: 20px;">Single Agent picks a tool, executes, summarizes with LLM</p>
+  <div style="background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px; margin: 20px 0;">
+    <svg width="100%" height="480" viewBox="0 0 900 480" style="display: block; margin: 0 auto;">
+      <!-- /Chat box -->
+      <rect x="20" y="80" width="100" height="60" rx="12" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="70" y="115" text-anchor="middle" fill="#fff" font-size="16">/Chat</text>
+      <!-- Arrow: Chat → Agent -->
+      <line x1="120" y1="110" x2="240" y2="110" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <text x="175" y="100" text-anchor="middle" fill="#666" font-size="11">"give me list of sports"</text>
+      <!-- Agent box -->
+      <rect x="240" y="70" width="120" height="80" rx="16" fill="none" stroke="#378ADD" stroke-width="2.5"/>
+      <text x="300" y="115" text-anchor="middle" fill="#378ADD" font-size="18" font-weight="bold">Agent</text>
+      <!-- Arrow: Agent → LLM -->
+      <line x1="300" y1="150" x2="300" y2="380" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- LLM box -->
+      <rect x="240" y="380" width="120" height="55" rx="12" fill="none" stroke="#EF9F27" stroke-width="2"/>
+      <text x="300" y="412" text-anchor="middle" fill="#EF9F27" font-size="16" font-weight="bold">LLM</text>
+      <!-- DB Tool -->
+      <rect x="420" y="50" width="100" height="40" rx="8" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="470" y="75" text-anchor="middle" fill="#639922" font-size="14">DB tool</text>
+      <!-- Arrow: Agent → DB Tool -->
+      <line x1="360" y1="90" x2="420" y2="70" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- Logs Tool -->
+      <rect x="420" y="110" width="110" height="40" rx="8" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="475" y="135" text-anchor="middle" fill="#639922" font-size="14">Logs tool</text>
+      <!-- Arrow: Agent → Logs Tool -->
+      <line x1="360" y1="110" x2="420" y2="130" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- RAG Tool -->
+      <rect x="420" y="170" width="110" height="40" rx="8" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="475" y="195" text-anchor="middle" fill="#639922" font-size="14">RAG tool</text>
+      <!-- Arrow: Agent → RAG Tool -->
+      <line x1="360" y1="130" x2="420" y2="190" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- DB (data store) -->
+      <rect x="750" y="40" width="100" height="60" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="800" y="75" text-anchor="middle" fill="#aaa" font-size="15">DB</text>
+      <!-- Arrow: DB Tool → DB -->
+      <line x1="520" y1="70" x2="750" y2="70" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- Logs (data store) -->
+      <rect x="750" y="130" width="100" height="60" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="800" y="165" text-anchor="middle" fill="#aaa" font-size="15">Logs</text>
+      <!-- Arrow: Logs Tool → Logs -->
+      <line x1="530" y1="130" x2="750" y2="155" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- OpenAI/Embeddings -->
+      <rect x="430" y="260" width="130" height="45" rx="8" fill="none" stroke="#EF9F27" stroke-width="2"/>
+      <text x="495" y="278" text-anchor="middle" fill="#EF9F27" font-size="12">OpenAI /</text>
+      <text x="495" y="295" text-anchor="middle" fill="#EF9F27" font-size="12">Embeddings</text>
+      <!-- Arrow: RAG Tool → Embeddings -->
+      <line x1="475" y1="210" x2="495" y2="260" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- Vector DB -->
+      <rect x="440" y="380" width="120" height="55" rx="14" fill="none" stroke="#378ADD" stroke-width="2"/>
+      <text x="500" y="412" text-anchor="middle" fill="#378ADD" font-size="15" font-weight="bold">Vector DB</text>
+      <!-- Arrow: Embeddings → Vector DB -->
+      <line x1="495" y1="305" x2="500" y2="380" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- Doc/Pdf -->
+      <rect x="720" y="300" width="100" height="60" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="770" y="335" text-anchor="middle" fill="#aaa" font-size="15">Doc/Pdf</text>
+      <!-- RAG Pipeline -->
+      <rect x="680" y="400" width="120" height="55" rx="14" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="740" y="432" text-anchor="middle" fill="#639922" font-size="14">RAG pipeline</text>
+      <!-- Arrow: Doc/Pdf → RAG Pipeline -->
+      <line x1="770" y1="360" x2="750" y2="400" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <!-- Arrow: RAG Pipeline → Vector DB (embeds) -->
+      <line x1="680" y1="427" x2="560" y2="410" stroke="#888" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+      <text x="620" y="408" text-anchor="middle" fill="#666" font-size="11">embeds</text>
+      <!-- Arrow markers -->
+      <defs>
+        <marker id="arrowGray" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#888"/></marker>
+      </defs>
+    </svg>
+  </div>
+  <div class="learning-box">
+    <p>💡 Simple but limited — LLM must choose from ALL tools at once. Gets confused with many options.</p>
+  </div>
+  <span class="slide-number">9</span>
+</div>
+
+<!-- Slide 10: Single Agent Router — Explained -->
+<div class="slide">
+  <h2>Phase 1: <span class="accent">How It Works</span> — "Give me list of sports"</h2>
+  <div class="two-col">
+    <div>
+      <h3 style="color: #378ADD;">🏗️ What We're Achieving</h3>
+      <ul>
+        <li>One <span class="accent">Agent</span> receives all user queries via <code>/chat</code></li>
+        <li>Agent asks the <span class="amber">LLM</span> to pick the right tool</li>
+        <li>Tool executes, returns raw data</li>
+        <li>LLM summarizes the result into a human-friendly answer</li>
+      </ul>
+      <div class="learning-box" style="margin-top: 20px;">
+        <p>💡 The Agent is the brain — it decides <strong>which tool</strong> to call and <strong>how</strong> to present the result.</p>
+      </div>
+    </div>
+    <div>
+      <h3 style="color: #639922;">🏏 Example Flow: "Give me list of sports"</h3>
+      <table>
+        <tr><th>Step</th><th>What Happens</th></tr>
+        <tr><td>1</td><td>User sends <span class="accent">/chat</span> → "Give me list of sports"</td></tr>
+        <tr><td>2</td><td><span class="accent">Agent</span> asks LLM: "Which tool?" → <span class="green">DB tool</span></td></tr>
+        <tr><td>3</td><td><span class="green">DB tool</span> runs query → <code>SELECT * FROM sports</code></td></tr>
+        <tr><td>4</td><td>DB returns: Cricket, Football, Badminton, Chess</td></tr>
+        <tr><td>5</td><td>Agent sends data to <span class="amber">LLM</span> → "Summarize this"</td></tr>
+        <tr><td>6</td><td>LLM responds: "There are 4 sports: Cricket, Football, Badminton, Chess"</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="code" style="margin-top: 20px; font-size: 14px;">// Response
+{ "response": "There are 4 sports available: Cricket, Football, Badminton, and Chess.",
+  "toolUsed": "db_tool", "query": "SELECT name FROM sports" }</div>
+  <span class="slide-number">10</span>
+</div>
+
+<!-- Slide 11: Single Agent Router — RAG Tool Example -->
+<div class="slide">
+  <h2>Phase 1: <span class="accent">RAG Tool Flow</span> — "What are the box cricket rules?"</h2>
+  <p style="margin-bottom: 20px;">When the question is about <span class="green">documents</span>, the Agent picks the RAG tool</p>
+  <table>
+    <tr><th>Step</th><th>Who</th><th>Action</th></tr>
+    <tr><td>1</td><td>User</td><td>Sends <span class="accent">/chat</span> → "What are the box cricket rules in our tournament?"</td></tr>
+    <tr><td>2</td><td><span class="accent">Agent</span></td><td>Asks LLM: "Which tool?" → <span class="green">RAG tool</span> (question is about docs, not DB)</td></tr>
+    <tr><td>3</td><td><span class="green">RAG tool</span></td><td>Embeds the query via <span class="amber">OpenAI/Embeddings</span> → gets vector [0.23, 0.87, ...]</td></tr>
+    <tr><td>4</td><td><span class="accent">Vector DB</span></td><td>Cosine similarity search → finds top 3 matching chunks from rules.pdf</td></tr>
+    <tr><td>5</td><td><span class="green">RAG tool</span></td><td>Returns chunks: "Each team has 8 players, 6 overs, boundaries = 4 runs..."</td></tr>
+    <tr><td>6</td><td><span class="accent">Agent</span></td><td>Sends chunks + question to <span class="amber">LLM</span> → "Answer based on this context"</td></tr>
+    <tr><td>7</td><td><span class="amber">LLM</span></td><td>Generates grounded answer from the retrieved document chunks</td></tr>
+  </table>
+  <div class="code" style="margin-top: 20px; font-size: 14px;">// Response
+{ "response": "According to the tournament rules: Each team has 8 players, the match is 6 overs per side,
+   boundaries count as 4 runs, and max 2 overs per bowler.",
+  "toolUsed": "rag_tool", "chunksUsed": 3, "source": "box-cricket-rules.pdf" }</div>
+  <div class="learning-box" style="margin-top: 16px;">
+    <p>💡 The Agent doesn't know the rules — it retrieves them from your uploaded PDF via vector search, then the LLM answers using that context.</p>
+  </div>
+  <div class="learning-box" style="margin-top: 12px; border-left-color: #EF9F27;">
+    <p style="color: #EF9F27;">🤔 <strong>How does the LLM pick RAG tool over DB tool?</strong> Each tool has a description:<br>
+    • <span style="color:#378ADD;">db_tool</span>: "Query structured data — users, teams, sports"<br>
+    • <span style="color:#639922;">rag_tool</span>: "Answer questions about documents, rules, policies, PDFs"<br>
+    The LLM matches the user's intent to the best tool description semantically — not by keywords.</p>
+  </div>
+  <span class="slide-number">11</span>
+</div>
+
+<!-- Slide 12: Phase 1 — RAG Flow Example -->
+<div class="slide">
+  <h2>Phase 1: <span class="accent">RAG Flow</span> — End to End</h2>
+  <div class="two-col">
+    <div>
+      <h3 style="color: #EF9F27;">📥 Ingestion (one-time)</h3>
+      <div class="code" style="font-size: 15px;">POST /api/ingest (file: rules.pdf)
+  ↓
+Extract text (PDFBox)
+  ↓
+Split into chunks (500 chars)
+  ↓
+Embed each chunk (Ollama)
+  ↓
+Store in pgvector</div>
+    </div>
+    <div>
+      <h3 style="color: #639922;">🔍 Query (every request)</h3>
+      <div class="code" style="font-size: 15px;">POST /api/chat "What are the rules?"
+  ↓
+Embed question (Ollama)
+  ↓
+Search pgvector (top 5 similar)
+  ↓
+Pass chunks as context to LLM
+  ↓
+LLM answers from YOUR docs</div>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 30px;">
+    <p>💡 The LLM never sees the full document — only the most relevant chunks. This is how RAG scales to thousands of pages.</p>
+  </div>
+  <span class="slide-number">12</span>
+</div>
+
+<!-- Slide 13: Phase 2 — Multi-Agent Orchestrator Diagram -->
+<div class="slide">
+  <h2>Phase 2: <span class="accent">Multi-Agent Orchestrator</span></h2>
+  <p style="margin-bottom: 20px;">Each domain gets its own agent with specialized tools</p>
+  <div style="background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px; margin: 20px 0;">
+    <svg width="100%" height="480" viewBox="0 0 950 480" style="display: block; margin: 0 auto;">
+      <!-- /Chat -->
+      <rect x="20" y="160" width="100" height="60" rx="12" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="70" y="195" text-anchor="middle" fill="#fff" font-size="16">/Chat</text>
+      <!-- Arrow: Chat → Orch -->
+      <line x1="120" y1="190" x2="230" y2="190" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <text x="175" y="180" text-anchor="middle" fill="#666" font-size="11">"give me list of sports"</text>
+      <!-- Orchestrator Agent -->
+      <rect x="230" y="150" width="130" height="80" rx="16" fill="none" stroke="#378ADD" stroke-width="2.5"/>
+      <text x="295" y="185" text-anchor="middle" fill="#378ADD" font-size="14" font-weight="bold">Orch.</text>
+      <text x="295" y="205" text-anchor="middle" fill="#378ADD" font-size="14" font-weight="bold">Agent</text>
+      <!-- Arrow: Orch → LLM -->
+      <line x1="295" y1="230" x2="295" y2="390" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- LLM -->
+      <rect x="235" y="390" width="120" height="50" rx="12" fill="none" stroke="#EF9F27" stroke-width="2"/>
+      <text x="295" y="420" text-anchor="middle" fill="#EF9F27" font-size="16" font-weight="bold">LLM</text>
+      <!-- DB Agent -->
+      <rect x="430" y="60" width="120" height="55" rx="14" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="490" y="92" text-anchor="middle" fill="#639922" font-size="15" font-weight="bold">DB agent</text>
+      <!-- Arrow: Orch → DB Agent -->
+      <line x1="360" y1="170" x2="430" y2="87" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- DB Agent Tools -->
+      <rect x="600" y="30" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="49" text-anchor="middle" fill="#aaa" font-size="12">Tool1</text>
+      <rect x="600" y="65" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="84" text-anchor="middle" fill="#aaa" font-size="12">Tool2</text>
+      <rect x="600" y="100" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="119" text-anchor="middle" fill="#aaa" font-size="12">Tool3</text>
+      <!-- Arrows: DB Agent → Tools -->
+      <line x1="550" y1="75" x2="600" y2="44" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="550" y1="87" x2="600" y2="79" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="550" y1="100" x2="600" y2="114" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <!-- DB -->
+      <rect x="820" y="50" width="90" height="55" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="865" y="82" text-anchor="middle" fill="#aaa" font-size="15">DB</text>
+      <!-- Arrows: Tools → DB -->
+      <line x1="670" y1="44" x2="820" y2="70" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="670" y1="79" x2="820" y2="77" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="670" y1="114" x2="820" y2="85" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <!-- Logs Agent -->
+      <rect x="430" y="170" width="120" height="55" rx="14" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="490" y="202" text-anchor="middle" fill="#639922" font-size="15" font-weight="bold">Logs agent</text>
+      <!-- Arrow: Orch → Logs Agent -->
+      <line x1="360" y1="190" x2="430" y2="197" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- Logs Agent Tools -->
+      <rect x="600" y="155" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="174" text-anchor="middle" fill="#aaa" font-size="12">Tool1</text>
+      <rect x="600" y="190" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="209" text-anchor="middle" fill="#aaa" font-size="12">Tool2</text>
+      <rect x="600" y="225" width="70" height="28" rx="6" fill="none" stroke="#aaa" stroke-width="1.5"/>
+      <text x="635" y="244" text-anchor="middle" fill="#aaa" font-size="12">Tool3</text>
+      <!-- Arrows: Logs Agent → Tools -->
+      <line x1="550" y1="185" x2="600" y2="169" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="550" y1="197" x2="600" y2="204" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="550" y1="210" x2="600" y2="239" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <!-- Logs -->
+      <rect x="820" y="175" width="90" height="55" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="865" y="207" text-anchor="middle" fill="#aaa" font-size="15">Logs</text>
+      <!-- Arrows: Tools → Logs -->
+      <line x1="670" y1="169" x2="820" y2="193" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="670" y1="204" x2="820" y2="202" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <line x1="670" y1="239" x2="820" y2="212" stroke="#888" stroke-width="1" marker-end="url(#arrowG2)"/>
+      <!-- RAG Agent -->
+      <rect x="430" y="280" width="120" height="45" rx="10" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="490" y="307" text-anchor="middle" fill="#639922" font-size="14" font-weight="bold">RAG agent</text>
+      <!-- Arrow: Orch → RAG Agent -->
+      <line x1="360" y1="215" x2="440" y2="285" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- OpenAI/Embeddings -->
+      <rect x="440" y="355" width="120" height="40" rx="8" fill="none" stroke="#EF9F27" stroke-width="2"/>
+      <text x="500" y="372" text-anchor="middle" fill="#EF9F27" font-size="11">OpenAI /</text>
+      <text x="500" y="387" text-anchor="middle" fill="#EF9F27" font-size="11">Embeddings</text>
+      <!-- Arrow: RAG Agent → Embeddings -->
+      <line x1="490" y1="325" x2="500" y2="355" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- Vector DB -->
+      <rect x="460" y="430" width="110" height="45" rx="14" fill="none" stroke="#378ADD" stroke-width="2"/>
+      <text x="515" y="457" text-anchor="middle" fill="#378ADD" font-size="14" font-weight="bold">Vector DB</text>
+      <!-- Arrow: Embeddings → Vector DB -->
+      <line x1="500" y1="395" x2="510" y2="430" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- Doc/Pdf -->
+      <rect x="750" y="320" width="90" height="50" rx="14" fill="none" stroke="#888" stroke-width="2"/>
+      <text x="795" y="350" text-anchor="middle" fill="#aaa" font-size="14">Doc/Pdf</text>
+      <!-- RAG Pipeline -->
+      <rect x="720" y="420" width="110" height="50" rx="14" fill="none" stroke="#639922" stroke-width="2"/>
+      <text x="775" y="450" text-anchor="middle" fill="#639922" font-size="13">RAG pipeline</text>
+      <!-- Arrow: Doc → RAG Pipeline -->
+      <line x1="795" y1="370" x2="780" y2="420" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <!-- Arrow: RAG Pipeline → Vector DB -->
+      <line x1="720" y1="445" x2="570" y2="452" stroke="#888" stroke-width="1.5" marker-end="url(#arrowG2)"/>
+      <text x="645" y="438" text-anchor="middle" fill="#666" font-size="11">embeds</text>
+      <!-- Arrow markers -->
+      <defs>
+        <marker id="arrowG2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#888"/></marker>
+      </defs>
+    </svg>
+  </div>
+  <span class="slide-number">13</span>
+</div>
+
+<!-- Slide 14: Phase 2 — Explanation -->
+<div class="slide">
+  <h2>Phase 2: <span class="accent">What Changed?</span></h2>
+  <p style="margin-bottom: 20px;">From one overloaded agent to <span class="green">specialized agents</span> with focused responsibilities</p>
+  <div class="card-row">
+    <div class="card">
+      <h3>🎯 Orchestrator Agent</h3>
+      <p>Only decides <span class="accent">which agent</span> to route to. One simple decision — not which tool from 9 options.</p>
+    </div>
+    <div class="card">
+      <h3>📊 DB Agent</h3>
+      <p>Owns all database tools (query users, teams, sports). Picks from <span class="green">its own 3 tools</span> only.</p>
+    </div>
+    <div class="card">
+      <h3>📋 Logs Agent</h3>
+      <p>Owns log tools (search, filter by level, tail). Focused on <span class="green">log operations</span> only.</p>
+    </div>
+    <div class="card">
+      <h3>📄 RAG Agent</h3>
+      <p>Handles document questions. Embeds → searches Vector DB → returns grounded answers.</p>
+    </div>
+  </div>
+  <table style="margin-top: 20px;">
+    <tr><th>Aspect</th><th>Phase 1 (Single Agent)</th><th>Phase 2 (Multi-Agent)</th></tr>
+    <tr><td>Decision complexity</td><td>1 agent picks from 9 tools</td><td><span class="green">Each agent picks from 3 tools</span></td></tr>
+    <tr><td>Accuracy</td><td>LLM confused with many options</td><td><span class="green">Simpler decisions = fewer mistakes</span></td></tr>
+    <tr><td>Adding new features</td><td>Add to god-service</td><td><span class="green">Add a new agent</span></td></tr>
+    <tr><td>LLM calls per request</td><td>2</td><td>3 (route + pick tool + summarize)</td></tr>
+  </table>
+  <div class="learning-box" style="margin-top: 16px;">
+    <p>💡 Trade-off: slightly more LLM calls, but each call is simpler and more accurate. Easier to extend and debug.</p>
+  </div>
+  <span class="slide-number">14</span>
+</div>
+
+<!-- Slide 15: Phase 2 — Examples -->
+<div class="slide">
+  <h2>Phase 2: <span class="accent">Examples</span></h2>
+  <div class="two-col">
+    <div>
+      <h3 style="color: #378ADD;">🏏 "Give me list of sports"</h3>
+      <table>
+        <tr><th>Step</th><th>Action</th></tr>
+        <tr><td>1</td><td><span class="accent">Orchestrator</span> → LLM: "Which agent?" → <span class="green">DB agent</span></td></tr>
+        <tr><td>2</td><td><span class="green">DB agent</span> → LLM: "Which tool?" → <span class="amber">query_sports</span></td></tr>
+        <tr><td>3</td><td>Tool runs: <code>SELECT * FROM sports</code></td></tr>
+        <tr><td>4</td><td>DB agent → LLM: "Summarize" → response</td></tr>
+      </table>
+      <div class="code" style="font-size: 13px; margin-top: 10px;">{ "agentUsed": "db",
+  "toolUsed": "query_sports",
+  "response": "4 sports: Cricket, Football, Badminton, Chess" }</div>
+    </div>
+    <div>
+      <h3 style="color: #639922;">📄 "What are the box cricket rules?"</h3>
+      <table>
+        <tr><th>Step</th><th>Action</th></tr>
+        <tr><td>1</td><td><span class="accent">Orchestrator</span> → LLM: "Which agent?" → <span class="green">RAG agent</span></td></tr>
+        <tr><td>2</td><td><span class="green">RAG agent</span> embeds query → searches Vector DB</td></tr>
+        <tr><td>3</td><td>Top 3 chunks retrieved from rules.pdf</td></tr>
+        <tr><td>4</td><td>RAG agent → LLM + chunks → grounded answer</td></tr>
+      </table>
+      <div class="code" style="font-size: 13px; margin-top: 10px;">{ "agentUsed": "rag",
+  "chunksUsed": 3,
+  "response": "8 players per team, 6 overs, 4 runs per boundary" }</div>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top: 20px;">
+    <p>💡 The Orchestrator only picks the agent (1 decision from 3 options). Each agent then handles its own domain independently.</p>
+  </div>
+  <span class="slide-number">15</span>
+</div>
+
+<!-- Slide 16: Tech Stack -->
+<div class="slide">
+  <h2>Tech Stack</h2>
+  <div class="card-row">
+    <div class="card">
+      <h3>🤖 LLM</h3>
+      <p><span class="accent">Ollama</span> + llama3.1</p>
+      <p style="font-size: 16px; margin-top: 8px;">Local, free, supports tool-calling</p>
+    </div>
+    <div class="card">
+      <h3>📐 Embeddings</h3>
+      <p><span class="accent">nomic-embed-text</span></p>
+      <p style="font-size: 16px; margin-top: 8px;">768 dimensions, runs locally via Ollama</p>
+    </div>
+    <div class="card">
+      <h3>🗄️ Vector DB</h3>
+      <p><span class="accent">pgvector</span> on PostgreSQL</p>
+      <p style="font-size: 16px; margin-top: 8px;">No new infra — extension on existing DB</p>
+    </div>
+    <div class="card">
+      <h3>📄 PDF Parsing</h3>
+      <p><span class="accent">Apache PDFBox</span></p>
+      <p style="font-size: 16px; margin-top: 8px;">Extract text, chunk, embed, store</p>
+    </div>
+  </div>
+  <table style="margin-top: 30px;">
+    <tr><th>Component</th><th>Phase 1</th><th>Phase 2</th></tr>
+    <tr><td>Architecture</td><td>Flat (1 service, 3 tools)</td><td>Multi-agent (orchestrator + 3 agents)</td></tr>
+    <tr><td>LLM calls/request</td><td>1-2</td><td>2-3</td></tr>
+    <tr><td>Accuracy</td><td>Good</td><td><span class="green">Better</span> (simpler decisions)</td></tr>
+    <tr><td>Extensibility</td><td>Hard (god service)</td><td><span class="green">Easy</span> (add agent/tool)</td></tr>
+  </table>
+  <span class="slide-number">16</span>
+</div>
+
+<!-- Slide 17: Key Takeaways -->
+<div class="slide" style="text-align: center;">
+  <h2>Key Takeaways</h2>
+  <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+    <div class="learning-box">
+      <p>🧠 <strong>RAG</strong> = Retrieve relevant docs + feed to LLM as context. Open-book exam for AI.</p>
+    </div>
+    <div class="learning-box">
+      <p>📐 <strong>Vector DB</strong> = Store meaning as numbers. Search by similarity, not keywords.</p>
+    </div>
+    <div class="learning-box">
+      <p>👑 <strong>Embeddings</strong> = "King" is close to "Queen" but far from "Pizza" in vector space.</p>
+    </div>
+    <div class="learning-box">
+      <p>🏗️ <strong>Agent Orchestrator</strong> = Route to specialized agents. Each agent makes simpler, better decisions.</p>
+    </div>
+    <div class="learning-box">
+      <p>🆓 <strong>All local</strong> = Ollama + pgvector. No API keys, no cost, no rate limits.</p>
+    </div>
+  </div>
+  <div style="margin-top: 40px;">
+    <span class="tag tag-blue" style="font-size: 18px; padding: 8px 20px;">Questions?</span>
+  </div>
+  <span class="slide-number">17</span>
+</div>
+
+<!-- Slide 18: Vectorless RAG — Title -->
+<div class="slide" style="text-align:center;overflow:hidden;position:relative;background:radial-gradient(ellipse at center,#0a1a0a 0%,#000 70%);">
+  <style>
+    .vl-node { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #639922; animation: floatNode 3s ease-in-out infinite, greenPulse 3s ease-in-out infinite; }
+    @keyframes floatNode { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-14px) scale(1.08); } }
+    @keyframes greenPulse { 0%, 100% { box-shadow: 0 0 8px #63992244; } 50% { box-shadow: 0 0 30px #63992299; } }
+    .vl-title { font-size: 60px; font-weight: 800; background: linear-gradient(180deg, #fff 0%, #639922 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: titleFadeUp 1s ease 0.4s forwards; opacity: 0; }
+  </style>
+  <div class="vl-node" style="top:10%;left:15%;"></div>
+  <div class="vl-node" style="top:20%;left:80%;width:6px;height:6px;background:#EF9F27;animation-delay:0.4s;"></div>
+  <div class="vl-node" style="top:60%;left:10%;animation-delay:0.8s;"></div>
+  <div class="vl-node" style="top:75%;left:70%;width:14px;height:14px;animation-delay:1.2s;"></div>
+  <div class="vl-node" style="top:40%;left:90%;width:8px;height:8px;background:#378ADD;animation-delay:1.6s;"></div>
+  <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.15;">
+    <line x1="15%" y1="10%" x2="80%" y2="20%" stroke="#639922" stroke-width="0.8"/>
+    <line x1="80%" y1="20%" x2="90%" y2="40%" stroke="#639922" stroke-width="0.8"/>
+    <line x1="10%" y1="60%" x2="15%" y2="10%" stroke="#639922" stroke-width="0.8"/>
+    <line x1="70%" y1="75%" x2="90%" y2="40%" stroke="#639922" stroke-width="0.8"/>
+  </svg>
+  <div style="position:relative;z-index:2;">
+    <p class="title-fade-1" style="font-size:16px;letter-spacing:6px;color:#639922;margin-bottom:20px;text-transform:uppercase;">A Different Retrieval Strategy</p>
+    <h1 class="vl-title">Vectorless RAG</h1>
+    <p class="title-fade-2" style="color:#4a7a4a;margin-top:10px;font-size:24px;">When Vector Search isn't the right tool — and what to use instead</p>
+    <p class="title-fade-3" style="color:#334433;margin-top:40px;">Rishabh Gupta · May 2026</p>
+    <div class="title-fade-4" style="margin-top:20px;">
+      <span class="tag tag-green">BM25</span>
+      <span class="tag tag-amber">Keyword Search</span>
+      <span class="tag" style="background:#2a1a0a;color:#EF9F27;">Real Examples</span>
+    </div>
+  </div>
+  <span class="slide-number">18</span>
+</div>
+
+<!-- Slide 19: RAG has Multiple Retrieval Strategies -->
+<div class="slide">
+  <h2>RAG has <span class="accent">Multiple Retrieval Strategies</span></h2>
+  <p style="font-size:22px;margin-bottom:30px;">The "Retrieve" step in RAG is not one-size-fits-all. Vector search is just one option.</p>
+  <div class="card-row">
+    <div class="card" style="border-color:#378ADD;">
+      <h3 style="color:#378ADD;">🧲 Dense Retrieval <span style="font-size:14px;color:#555;">(Vector)</span></h3>
+      <p>Embed query + docs into vectors. Find nearest neighbours by cosine similarity.</p>
+      <p style="color:#378ADD;font-size:16px;margin-top:10px;">Great for: semantic meaning, paraphrases, multilingual</p>
+    </div>
+    <div class="card" style="border-color:#EF9F27;">
+      <h3 style="color:#EF9F27;">🔤 Sparse Retrieval <span style="font-size:14px;color:#555;">(BM25)</span></h3>
+      <p>Score docs by keyword frequency and rarity. No embeddings, no vectors.</p>
+      <p style="color:#EF9F27;font-size:16px;margin-top:10px;">Great for: exact terms, product names, IDs, code</p>
+    </div>
+    <div class="card" style="border-color:#639922;">
+      <h3 style="color:#639922;">🔀 Hybrid</h3>
+      <p>Combine BM25 keyword scores with vector similarity scores for the best of both worlds.</p>
+      <p style="color:#639922;font-size:16px;margin-top:10px;">Great for: large corpora needing both precision and recall</p>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top:24px;">
+    <p>💡 Sahil covered <span class="accent">Dense (Vector)</span> retrieval. Now let's look at <span class="green">where it struggles</span> — and what to use instead.</p>
+  </div>
+  <span class="slide-number">19</span>
+</div>
+
+<!-- Slide 20: Where Vector Search Fails -->
+<div class="slide">
+  <h2>Where <span class="accent">Vector Search</span> <span class="red">Fails</span></h2>
+  <p style="font-size:22px;margin-bottom:30px;">Embeddings are powerful — but they have real blind spots.</p>
+  <div class="card-row">
+    <div class="card" style="border-color:#E24B4A;">
+      <h3 style="color:#E24B4A;">❌ Exact terms get lost</h3>
+      <p>User searches <strong>"error code E-4021"</strong>. The embedding model generalises it — returns docs about "error handling" instead of the specific code.</p>
+      <div class="code" style="font-size:13px;margin-top:10px;">Query: "E-4021 payment failure"
+Vector result: "handling payment errors" ← wrong
+BM25 result:   "E-4021: card declined"  ← correct ✓</div>
+    </div>
+    <div class="card" style="border-color:#E24B4A;">
+      <h3 style="color:#E24B4A;">❌ Expensive to set up</h3>
+      <p>Every doc must be embedded and stored. Adding new docs means re-embedding. Needs a running embedding model 24/7.</p>
+      <div class="code" style="font-size:13px;margin-top:10px;">// For 10,000 docs:
+10,000 × embed() calls at ingest
++ pgvector index to maintain
++ embedding model always running</div>
+    </div>
+    <div class="card" style="border-color:#EF9F27;">
+      <h3 style="color:#EF9F27;">⚠️ Overkill for small corpora</h3>
+      <p>200 FAQs? 50 wiki pages? Full vector infrastructure is more complexity than the problem warrants.</p>
+      <div class="code" style="font-size:13px;margin-top:10px;">// Reality check
+200 FAQs × 768 dims = 1.2M floats
+BM25 on same data = a few KB index
+Accuracy difference? Negligible.</div>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top:20px;border-left-color:#E24B4A;">
+    <p style="color:#ffaaaa;">These aren't edge cases — they're common real-world scenarios. This is where <span class="green">Vectorless</span> shines.</p>
+  </div>
+  <span class="slide-number">20</span>
+</div>
+
+<!-- Slide 21: What is Vectorless? -->
+<div class="slide">
+  <h2>So what is <span class="green">Vectorless</span>?</h2>
+  <p style="font-size:22px;margin-bottom:30px;">Same RAG pipeline. Different retrieval step — <span class="green">no embeddings, no vector index</span>.</p>
+  <div class="diagram">
+    <span style="color:#555;">Vector RAG:</span>  Query → <span class="highlight">embed() → cosine search on vectors</span> → top-k → LLM<br><br>
+    <span style="color:#639922;">Vectorless:</span>  Query → <span class="green-hl">BM25 / keyword search</span> → top-k → LLM
+  </div>
+  <div class="card-row" style="margin-top:24px;">
+    <div class="card">
+      <h3>✅ What stays the same</h3>
+      <ul>
+        <li>You still chunk your documents</li>
+        <li>You still retrieve top-k relevant chunks</li>
+        <li>You still inject them as LLM context</li>
+        <li>LLM still generates a grounded answer</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="color:#639922;">✅ What changes</h3>
+      <ul>
+        <li>No embedding model needed</li>
+        <li>No vector index to maintain</li>
+        <li>Use text search you already have</li>
+        <li>Works with plain PostgreSQL / SQLite</li>
+      </ul>
+    </div>
+  </div>
+  <div class="learning-box" style="margin-top:20px;">
+    <p>💡 Vectorless = <strong>RAG with the retrieval step swapped out</strong>. Everything else is identical.</p>
+  </div>
+  <span class="slide-number">21</span>
+</div>
+
+<!-- Slide 22: BM25 — The Engine Behind Vectorless -->
+<div class="slide">
+  <h2><span class="green">BM25</span> — The Engine Behind Vectorless</h2>
+  <p style="font-size:22px;margin-bottom:24px;">Best Match 25 — a smarter keyword ranking algorithm. Built into Elasticsearch, PostgreSQL, SQLite.</p>
+  <div class="two-col">
+    <div>
+      <h3>How it scores a document</h3>
+      <div class="code" style="font-size:14px;">Query: "cricket batting rules"
+
+Doc A: "batting rules state that..."
+  → "batting" appears 3×, "rules" 2×
+  → Score: 8.4  ✓ HIGH
+
+Doc B: "the umpire signals a wide"
+  → "batting" 0×, "rules" 0×
+  → Score: 0.1  ✗ LOW
+
+Doc C: "rules for bowling and batting"
+  → both terms present
+  → Score: 6.1  ✓ MEDIUM</div>
+      <p style="color:#888;font-size:15px;margin-top:10px;">Ranks by term frequency + how rare the term is across all docs (IDF).</p>
+    </div>
+    <div>
+      <h3>Real example — box cricket bot</h3>
+      <div class="code" style="font-size:14px;">-- PostgreSQL FTS (BM25-style)
+-- No pgvector extension needed!
+
+SELECT chunk_text
+FROM doc_chunks
+WHERE to_tsvector('english', chunk_text)
+   @@ plainto_tsquery('batting rules')
+ORDER BY ts_rank(
+  to_tsvector('english', chunk_text),
+  plainto_tsquery('batting rules')
+) DESC
+LIMIT 3;</div>
+      <div class="learning-box" style="margin-top:12px;">
+        <p style="font-size:16px;">This is <strong>plain PostgreSQL</strong> — no extension, no embedding model, no vector index.</p>
+      </div>
+    </div>
+  </div>
+  <span class="slide-number">22</span>
+</div>
+
+<!-- Slide 23: Real Example 1 — Error Code Search -->
+<div class="slide">
+  <h2>Real Example 1: <span class="green">Support Bot — Error Code Lookup</span></h2>
+  <p style="font-size:21px;margin-bottom:24px;">User asks: <em>"What does error E-4021 mean?"</em> — a case where vector search <span class="red">fails</span>.</p>
+  <div class="two-col">
+    <div>
+      <h3 style="color:#E24B4A;">❌ Vector search gets it wrong</h3>
+      <div class="code" style="font-size:14px;">embed("error E-4021")
+→ vector is close to:
+  "handling payment errors"  ✗
+  "common API error types"   ✗
+  "error recovery strategies"✗
+
+The model generalises "E-4021"
+into a generic "error" concept.
+Specific code is lost.</div>
+      <p style="color:#E24B4A;font-size:15px;margin-top:8px;">Embeddings are bad at exact IDs, codes, names.</p>
+    </div>
+    <div>
+      <h3 style="color:#639922;">✅ BM25 gets it right</h3>
+      <div class="code" style="font-size:14px;">BM25("error E-4021")
+→ exact term match:
+  "E-4021: Card declined due
+   to insufficient funds.
+   Ask user to retry with
+   a different card."        ✓
+
+Term "E-4021" is rare → high IDF
+→ BM25 ranks it top instantly.</div>
+      <p style="color:#639922;font-size:15px;margin-top:8px;">Rare, specific terms are BM25's strength.</p>
+    </div>
+  </div>
+  <div class="diagram" style="margin-top:20px;">
+    "E-4021" → <span class="green-hl">BM25 (PostgreSQL FTS)</span> → "E-4021: Card declined..." → <span class="highlight">LLM</span> → ✅ "Error E-4021 means your card was declined."
+  </div>
+  <span class="slide-number">23</span>
+</div>
+
+<!-- Slide 24: Real Example 2 — Internal Wiki -->
+<div class="slide">
+  <h2>Real Example 2: <span class="green">Internal Wiki — Deploy Question</span></h2>
+  <p style="font-size:21px;margin-bottom:24px;">Engineer asks: <em>"How do we deploy to staging?"</em> — 500 wiki pages, no vector DB.</p>
+  <div class="card-row">
+    <div class="card">
+      <h3>Step 1 — BM25 retrieves top matches</h3>
+      <p>Keyword search on wiki pages. Fast, no embedding needed.</p>
+      <div class="code" style="font-size:13px;margin-top:10px;">BM25("deploy staging")
+→ deploy.md       score: 8.2
+→ ci-cd.md        score: 6.1
+→ environments.md score: 4.8</div>
+    </div>
+    <div class="card">
+      <h3>Step 2 — Feed top chunks to LLM</h3>
+      <p>Top-scored pages become context. LLM answers directly from your docs.</p>
+      <div class="code" style="font-size:13px;margin-top:10px;">Context: [deploy.md content]
+User: "How to deploy to staging?"
+
+LLM: "Run ./deploy.sh staging
+then verify on Grafana at
+grafana.internal/staging"  ✓</div>
+    </div>
+  </div>
+  <div class="diagram" style="margin-top:20px;">
+    "deploy staging" → <span class="green-hl">BM25</span> → top 3 pages → <span class="highlight">LLM</span> → ✅ Grounded answer from your actual wiki
+  </div>
+  <div class="learning-box" style="margin-top:20px;">
+    <p>💡 BM25 score is enough to surface the right page — no reranking step needed for structured content like wikis.</p>
+  </div>
+  <span class="slide-number">24</span>
+</div>
+
+<!-- Slide 25: Vector vs Vectorless — Decision Guide -->
+<div class="slide">
+  <h2>Vector vs Vectorless — <span class="green">Pick the Right Tool</span></h2>
+  <table style="margin-top:20px;">
+    <tr><th>Scenario</th><th>Use</th><th>Why</th></tr>
+    <tr><td>Error codes, product IDs, SKUs</td><td><span class="green">Vectorless (BM25)</span></td><td>Exact terms — embeddings generalise them away</td></tr>
+    <tr><td>200 company FAQs</td><td><span class="green">Vectorless (FTS)</span></td><td>Small set, keyword search is enough</td></tr>
+    <tr><td>Internal wiki (500 pages)</td><td><span class="green">Vectorless (BM25)</span></td><td>Structured content, fast setup, no infra</td></tr>
+    <tr><td>10,000 research papers</td><td><span class="accent">Vector DB</span></td><td>Semantic search across large corpus</td></tr>
+    <tr><td>Multilingual support docs</td><td><span class="accent">Vector DB</span></td><td>Cross-language semantic matching</td></tr>
+    <tr><td>Image / audio search</td><td><span class="accent">Vector DB</span></td><td>No text to keyword-search on</td></tr>
+    <tr><td>Weekend hackathon / MVP</td><td><span class="green">Vectorless</span></td><td>Ship fast — add vectors later if needed</td></tr>
+  </table>
+  <div class="learning-box" style="margin-top:24px;">
+    <p>💡 <strong>Start Vectorless.</strong> Add a vector DB only when you hit a real limit — most projects never do.</p>
+  </div>
+  <span class="slide-number">25</span>
+</div>
+
+<!-- Slide 26: Key Takeaways — Vectorless RAG -->
+<div class="slide" style="text-align:center;">
+  <h2>Key Takeaways — <span class="green">Vectorless RAG</span></h2>
+  <div style="text-align:left;max-width:820px;margin:0 auto;">
+    <div class="learning-box">
+      <p>🗺️ <strong>RAG retrieval is a choice</strong> — Dense (vector), Sparse (BM25), or Hybrid. Vector is just one option.</p>
+    </div>
+    <div class="learning-box">
+      <p>❌ <strong>Vector search fails</strong> on exact codes/IDs, is expensive to set up, and is overkill for small doc sets.</p>
+    </div>
+    <div class="learning-box">
+      <p>🔤 <strong>BM25</strong> = keyword ranking built into PostgreSQL, SQLite, Elasticsearch. Zero extra infra.</p>
+    </div>
+    <div class="learning-box">
+      <p>⚡ <strong>Same RAG pipeline</strong> — only the retrieval step changes. Everything else stays identical.</p>
+    </div>
+  </div>
+  <div style="margin-top:36px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+    <span class="tag tag-green" style="font-size:17px;padding:8px 20px;">Vectorless ✓</span>
+    <span class="tag tag-amber" style="font-size:17px;padding:8px 20px;">Questions? 🙋</span>
+  </div>
+  <span class="slide-number">26</span>
+</div>
+</html>
+
+</body>
+</html>
